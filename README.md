@@ -20,4 +20,4 @@ If you just want un-modified, basic Godot bindings, you can do that too!
 | 1 | Install via haxelib. | <pre>haxelib install godot-api-generator</pre> |
 | 2 | Add the lib to your `.hxml` file or compile command. | <pre lang="hxml">-lib godot-api-generator</pre> |
 | 3a | Generate bindings using `extension_api.json`. | <pre>haxelib run godot-api-generator [path-to-json] [output-dir]</pre> |
-| 3b | OR use in your own generator. | <pre lang="haxe">final haxeTypes: Array&lt;TypeDefinition&gt; = godot.APIGenerator("path-to-json");</pre> |
+| 3b | OR use in your own generator. | <pre lang="haxe">final haxeTypes: Array&lt;TypeDefinition&gt; = godot.Bindings.generate("path-to-json");</pre> |

@@ -1,0 +1,20 @@
+{
+	"name": "godot-api-generator",
+	"version": "1.0.0",
+	"description": "Generates target-agnostic Godot bindings for Haxe.",
+	"url": "https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator",
+	"license": "MIT",
+	"tags": [
+		"godot",
+		"gdscript",
+		"generator",
+		"api",
+		"bindings"
+	],
+	"dependencies": {
+		"godot-extension-api-typings": "1.0.1"
+	},
+	"classPath": "src/",
+	"releasenote": "Initial release.",
+	"contributors": ["SomeRanDev"]
+}
