@@ -15,14 +15,18 @@ jobs:
         with:
           haxe-version: 4.3.0
 
-      - name: Setup Godot
-        uses: abarichello/godot-ci@4.1.3-stable
+      - uses: paulloz/godot-action@v1.2.2
+        with:
+          version: 4.1.3
 
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Check Haxe Version
         run: haxe -version
+
+      - name: Check Godot Version
+        run: godot --version
 
       - name: Generate JSON API
         run: godot --dump-extension-api-with-docs extension_api.json
