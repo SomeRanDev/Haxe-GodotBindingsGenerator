@@ -1,0 +1,37 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test_runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Haxe 4.3.0
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.0
+
+      - name: Setup Godot
+        uses: abarichello/godot-ci@4.1.3-stable
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check Haxe Version
+        run: haxe -version
+
+      - name: Generate JSON API
+        run: godot --dump-extension-api-with-docs extension_api.json
+
+      - name: Setup Library
+        run: haxelib git godot-api-generator .
+
+      - name: Create Bindings
+        run: haxelib run godot-api-generator extension_api.json godot
+
+      - name: Test DevEnv.hxml
+        run: haxe DevEnv.hxml
