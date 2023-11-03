@@ -44,12 +44,8 @@ class Bindings {
   
 		final printer = new Printer();
 		for(definition in typeDefinitions) {
-			trace(FileSystem.absolutePath(outputPath));
 			final p = Path.join([outputPath, definition.name + ".hx"]);
-			trace(FileSystem.absolutePath(p));
 			File.saveContent(p, printer.printTypeDefinition(definition));
-
-			trace(File.getContent(p));
 		}
 	}
 
@@ -95,9 +91,19 @@ class Bindings {
 
 	function processIdentifier(name: String): String {
 		return switch(name) {
-			case "default": "_" + name;
+			case "default" | "operator" | "class" | "enum" | "in" | "override" | "interface" | "var" | "new": "_" + name;
 			case _: name;
 		}
+	}
+
+	function processDescription(description: Null<String>): String {
+		if(description == null) {
+			return null;
+		}
+		if(StringTools.contains(description, "*/")) {
+			return StringTools.replace(description, "*/", "* /");
+		}
+		return description;
 	}
 
 	function getPack(): Array<String> {
@@ -120,11 +126,27 @@ class Bindings {
 	}
 
 	function getType(typeString: String): ComplexType {
+		final typearrPrefix = "typedarray::";
+		if(StringTools.startsWith(typeString, typearrPrefix)) {
+			return TPath({
+				pack: [],
+				name: "Array",//"GodotArray",
+				params: [
+					TPType(getType(typeString.substring(typearrPrefix.length)))
+				]
+			});
+		}
+
+		if(StringTools.startsWith(typeString, "enum::") || StringTools.startsWith(typeString, "bitfield::")) {
+			return macro : Dynamic;
+		}
+
 		return switch(typeString) {
 			case "bool": macro : Bool;
 			case "int": macro : Int;
 			case "float": macro : Float;
 			case "String": macro : String;
+			case "Array": macro : godot.GodotArray;
 			case "Variant": macro : Dynamic;
 			case _: TPath({
 				pack: getPack(),
@@ -135,6 +157,13 @@ class Bindings {
 
 	function getReturnType(typeString: Null<String>): ComplexType {
 		return typeString == null ? (macro : Void) : getType(typeString);
+	}
+
+	function getTypePathFromComplex(cp: ComplexType): TypePath {
+		return switch(cp) {
+			case TPath(p): p;
+			case _: throw 'Cannot convert ComplexType ${cp} to TypePath.';
+		}
 	}
 
 	function makeMetadata(...data: Expr) {
@@ -194,6 +223,10 @@ class Bindings {
 			result.push(generateBuiltinClass(builtin));
 		}
 
+		for(cls in data.classes) {
+			result.push(generateClass(cls));
+		}
+
 		return result;
 	}
 
@@ -214,7 +247,7 @@ class Bindings {
 				macro is_vararg($v{utilityFunction.is_vararg}),
 				macro hash($v{utilityFunction.hash})
 			),
-			doc: utilityFunction.description
+			doc: processDescription(utilityFunction.description)
 		}
 	}
 
@@ -227,7 +260,7 @@ class Bindings {
 			meta: makeMetadata(
 				macro is_bitfield($v{globalConstant.is_bitfield})
 			),
-			doc: globalConstant.description
+			doc: processDescription(globalConstant.description)
 		}
 	}
 
@@ -242,7 +275,7 @@ class Bindings {
 					pos: makeEmptyPosition(),
 					access: [APublic, AStatic],
 					kind: FVar(macro : Int, macro $v{godotEnumValue.value}),
-					doc: godotEnumValue.description
+					doc: processDescription(godotEnumValue.description)
 				}
 			}),
 			meta: makeMetadata(
@@ -277,9 +310,9 @@ class Bindings {
 					name: "new",
 					pos: makeEmptyPosition(),
 					access: fieldAccess,
-					kind: FFun({ args: args }),
+					kind: FFun({ args: args, ret: null }),
 					meta: [],
-					doc: constructor.description
+					doc: processDescription(constructor.description)
 				});
 			} else {
 				fields.push({
@@ -288,7 +321,7 @@ class Bindings {
 					access: fieldAccess.concat([AStatic, AOverload]),
 					kind: FFun({ args: args, ret: getType(processTypeName(cls.name)) }),
 					meta: [],
-					doc: constructor.description
+					doc: processDescription(constructor.description)
 				});
 			}
 		}
@@ -300,7 +333,7 @@ class Bindings {
 				access: fieldAccess,
 				kind: FVar(getType(member.type), null),
 				meta: [],
-				doc: member.description
+				doc: processDescription(member.description)
 			});
 		}
 
@@ -313,7 +346,7 @@ class Bindings {
 				meta: makeMetadata(
 					macro value($v{constant.value})
 				),
-				doc: constant.description
+				doc: processDescription(constant.description)
 			});
 		}
 
@@ -342,7 +375,7 @@ class Bindings {
 					macro is_static($v{method.is_static}),
 					macro hash($v{method.hash})
 				),
-				doc: method.description
+				doc: processDescription(method.description)
 			});
 		}
 
@@ -378,7 +411,175 @@ class Bindings {
 				macro is_keyed($v{cls.is_keyed}),
 				macro has_destructor($v{cls.has_destructor})
 			),
-			doc: cls.description
+			doc: processDescription(cls.description)
+		}
+	}
+
+	/**
+		typedef Class = {
+			name: String,
+			is_refcounted: Bool,
+			is_instantiable: Bool,
+
+			inherits: Null<String>,
+
+			api_type: String, // "core", "editor", "extension", "editor_extension"
+
+			constants: MaybeArray<{
+				name: String,
+				value: Int,
+				description: Null<String>
+			}>,
+
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L956C16-L956C16
+			enums: MaybeArray<{
+				name: String,
+				is_bitfield: Int,
+				values: Array<{
+					name: String,
+					value: Int,
+					description: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+
+			
+
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1142C13-L1142C13
+			signals: MaybeArray<{
+				name: String,
+				arguments: MaybeArray<{
+					name: String,
+					type: String,
+					meta: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1193C16-L1193C16
+			properties: MaybeArray<{
+				type: String,
+				name: String,
+				setter: Null<String>,
+				getter: Null<String>,
+				index: Null<Int>,
+				description: Null<String>
+			}>,
+
+			brief_description: Null<String>,
+			description: Null<String>
+		}
+	**/
+	function generateClass(cls: GodotClass): TypeDefinition {
+		final fields = [];
+		final fieldAccess = [APublic];
+
+		for(constant in cls.constants.denullify()) {
+			fields.push({
+				name: processIdentifier(constant.name),
+				pos: makeEmptyPosition(),
+				access: fieldAccess.concat([AStatic]),
+				kind: FVar(macro : Int,
+					// Cannot have value on extern, but if we could we'd use: macro $v{constant.value}),
+					null
+				),
+				meta: [],
+				doc: processDescription(constant.description)
+			});
+		}
+
+		/**
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1006C9-L1006C9
+			methods: MaybeArray<{
+				name: String,
+				is_const: Bool,
+				is_static: Bool,
+				is_vararg: Bool,
+				is_virtual: Bool,
+
+				// only appears when not virtual? 
+				// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1003C29-L1003C29
+				hash: Null<Int>,
+
+				// Don't know what to type this
+				// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1082C8-L1082C8
+				hash_compatibility: Array<Dynamic>,
+
+				arguments: MaybeArray<{
+					name: String,
+					type: String,
+					meta: Null<String>,
+
+					// only appears when not virtual
+					// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1103C18-L1103C18
+					default_value: Null<String>
+				}>,
+				return_value: Null<{
+					// impossible to get "name" field
+					type: String,
+					meta: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+		**/
+		for(method in cls.methods.denullify()) {
+			final metadata = makeMetadata(
+				macro is_const($v{method.is_const}),
+				macro is_static($v{method.is_static}),
+				macro is_vararg($v{method.is_vararg}),
+				macro is_virtual($v{method.is_virtual}),
+				macro hash($v{method.hash}),
+				macro hash_compatibility($v{method.hash_compatibility}),
+			);
+
+			if(method.return_value != null) {
+				metadata.unshift(makeMetadata(macro return_value_meta($v{method.return_value.meta}))[0]);
+			}
+
+			var hasCppType = StringTools.endsWith(method.return_value?.type ?? "", "*");
+			for(a in method.arguments.denullify()) {
+				if(StringTools.endsWith(a.type, "*")) {
+					hasCppType = true;
+					break;
+				}
+			}
+			if(hasCppType) continue;
+
+			fields.push({
+				name: processIdentifier(method.name),
+				pos: makeEmptyPosition(),
+				access: fieldAccess,
+				kind: FFun({
+					args: method.arguments.maybeMap(function(godotArg): FunctionArg {
+						return {
+							name: processIdentifier(godotArg.name),
+							type: getType(godotArg.type),
+							meta: makeMetadata(
+								macro meta($v{godotArg.meta}),
+								macro default_value($v{godotArg.default_value}),
+							)
+						}
+					}),
+					ret: getReturnType(method.return_value?.type)
+				}),
+				meta: metadata,
+				doc: processDescription(method.description)
+			});
+		}
+
+		return {
+			name: processTypeName(cls.name),
+			pack: getPack(),
+			pos: makeEmptyPosition(),
+			fields: fields,
+			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits))), null, false, false, false),
+			isExtern: true,
+			meta: makeMetadata(
+				macro is_refcounted($v{cls.is_refcounted}),
+				macro is_instantiable($v{cls.is_instantiable}),
+				macro api_type($v{cls.api_type})
+			),
+			doc: processDescription(cls.description)
 		}
 	}
 }
