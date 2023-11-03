@@ -91,7 +91,7 @@ class Bindings {
 
 	function processIdentifier(name: String): String {
 		return switch(name) {
-			case "default" | "operator" | "class" | "enum" | "in" | "override" | "interface" | "var" | "new": "_" + name;
+			case "default" | "operator" | "class" | "enum" | "in" | "override" | "interface" | "var" | "new" | "function": "_" + name;
 			case _: name;
 		}
 	}
@@ -415,61 +415,6 @@ class Bindings {
 		}
 	}
 
-	/**
-		typedef Class = {
-			name: String,
-			is_refcounted: Bool,
-			is_instantiable: Bool,
-
-			inherits: Null<String>,
-
-			api_type: String, // "core", "editor", "extension", "editor_extension"
-
-			constants: MaybeArray<{
-				name: String,
-				value: Int,
-				description: Null<String>
-			}>,
-
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L956C16-L956C16
-			enums: MaybeArray<{
-				name: String,
-				is_bitfield: Int,
-				values: Array<{
-					name: String,
-					value: Int,
-					description: Null<String>
-				}>,
-				description: Null<String>
-			}>,
-
-			
-
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1142C13-L1142C13
-			signals: MaybeArray<{
-				name: String,
-				arguments: MaybeArray<{
-					name: String,
-					type: String,
-					meta: Null<String>
-				}>,
-				description: Null<String>
-			}>,
-
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1193C16-L1193C16
-			properties: MaybeArray<{
-				type: String,
-				name: String,
-				setter: Null<String>,
-				getter: Null<String>,
-				index: Null<Int>,
-				description: Null<String>
-			}>,
-
-			brief_description: Null<String>,
-			description: Null<String>
-		}
-	**/
 	function generateClass(cls: GodotClass): TypeDefinition {
 		final fields = [];
 		final fieldAccess = [APublic];
@@ -488,40 +433,54 @@ class Bindings {
 			});
 		}
 
-		/**
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1006C9-L1006C9
-			methods: MaybeArray<{
-				name: String,
-				is_const: Bool,
-				is_static: Bool,
-				is_vararg: Bool,
-				is_virtual: Bool,
+		final renamedMethods: Map<String, String> = [];
 
-				// only appears when not virtual? 
-				// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1003C29-L1003C29
-				hash: Null<Int>,
+		for(property in cls.properties.denullify()) {
+			if(StringTools.contains(property.type, ",") || StringTools.contains(property.type, "/")) {
+				continue;
+			}
 
-				// Don't know what to type this
-				// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1082C8-L1082C8
-				hash_compatibility: Array<Dynamic>,
+			final name = processIdentifier(property.name);
+			final type = getType(property.type);
 
-				arguments: MaybeArray<{
-					name: String,
-					type: String,
-					meta: Null<String>,
+			final set = "set_" + name;
+			final renamedSet = "set_" + name + "_impl";
 
-					// only appears when not virtual
-					// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1103C18-L1103C18
-					default_value: Null<String>
-				}>,
-				return_value: Null<{
-					// impossible to get "name" field
-					type: String,
-					meta: Null<String>
-				}>,
-				description: Null<String>
-			}>,
-		**/
+			renamedMethods.set(set, renamedSet);
+
+			fields.push({
+				name: set,
+				pos: makeEmptyPosition(),
+				access: fieldAccess.concat([AInline, AExtern]),
+				kind: FFun({
+					args: [{
+						name: "v",
+						type: type
+					}],
+					ret: type,
+					expr: macro {
+						$i{renamedSet}(v);
+						return v;
+					}
+				}),
+				meta: [],
+				doc: processDescription(property.description),
+			});
+
+			fields.push({
+				name: name,
+				pos: makeEmptyPosition(),
+				access: fieldAccess,
+				kind: FProp("get", "set", type),
+				meta: makeMetadata(
+					macro index($v{property.index}),
+					macro getter($v{property.getter}),
+					macro setter($v{property.setter})
+				),
+				doc: processDescription(property.description)
+			});
+		}
+
 		for(method in cls.methods.denullify()) {
 			final metadata = makeMetadata(
 				macro is_const($v{method.is_const}),
@@ -545,8 +504,13 @@ class Bindings {
 			}
 			if(hasCppType) continue;
 
+			var name = processIdentifier(method.name);
+			if(renamedMethods.exists(name)) {
+				name = renamedMethods.get(name);
+			}
+
 			fields.push({
-				name: processIdentifier(method.name),
+				name: name,
 				pos: makeEmptyPosition(),
 				access: fieldAccess,
 				kind: FFun({
@@ -566,6 +530,33 @@ class Bindings {
 				doc: processDescription(method.description)
 			});
 		}
+
+		/**TODO
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1142C13-L1142C13
+			signals: MaybeArray<{
+				name: String,
+				arguments: MaybeArray<{
+					name: String,
+					type: String,
+					meta: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+		**/
+
+		/**TODO
+			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L956C16-L956C16
+			enums: MaybeArray<{
+				name: String,
+				is_bitfield: Int,
+				values: Array<{
+					name: String,
+					value: Int,
+					description: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+		**/
 
 		return {
 			name: processTypeName(cls.name),
