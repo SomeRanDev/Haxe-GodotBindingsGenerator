@@ -15,6 +15,6 @@
 		"godot-extension-api-typings": "1.0.2"
 	},
 	"classPath": "src/",
-	"releasenote": "Initial release.",
+	"releasenote": "Initial release. Signals and local enums still incomplete.",
 	"contributors": ["SomeRanDev"]
 }
