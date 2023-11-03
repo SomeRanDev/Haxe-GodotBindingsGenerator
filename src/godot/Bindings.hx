@@ -38,6 +38,8 @@ class Bindings {
 		Outputs `TypeDefinition`s as Haxe source files.
 	**/
 	public static function output(outputPath: String, typeDefinitions: Array<TypeDefinition>) {
+		trace(outputPath);
+		trace(FileSystem.exists(outputPath));
 		if(!FileSystem.exists(outputPath)) {
 			FileSystem.createDirectory(outputPath);
 		}
@@ -45,6 +47,7 @@ class Bindings {
 		final printer = new Printer();
 		for(definition in typeDefinitions) {
 			final p = Path.join([outputPath, definition.name + ".hx"]);
+			trace("saveing content: ", p);
 			File.saveContent(p, printer.printTypeDefinition(definition));
 		}
 	}
