@@ -440,38 +440,11 @@ class Bindings {
 				continue;
 			}
 
-			final name = processIdentifier(property.name);
-			final type = getType(property.type);
-
-			final set = "set_" + name;
-			final renamedSet = "set_" + name + "_impl";
-
-			renamedMethods.set(set, renamedSet);
-
 			fields.push({
-				name: set,
-				pos: makeEmptyPosition(),
-				access: fieldAccess.concat([AInline, AExtern]),
-				kind: FFun({
-					args: [{
-						name: "v",
-						type: type
-					}],
-					ret: type,
-					expr: macro {
-						$i{renamedSet}(v);
-						return v;
-					}
-				}),
-				meta: [],
-				doc: processDescription(property.description),
-			});
-
-			fields.push({
-				name: name,
+				name: processIdentifier(property.name),
 				pos: makeEmptyPosition(),
 				access: fieldAccess,
-				kind: FProp("get", "set", type),
+				kind: FVar(getType(property.type)),
 				meta: makeMetadata(
 					macro index($v{property.index}),
 					macro getter($v{property.getter}),
