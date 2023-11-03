@@ -100,7 +100,17 @@ class Bindings {
 	}
 
 	function getType(typeString: String): ComplexType {
-		return macro : Void;
+		return switch(typeString) {
+			case "bool": macro : Bool;
+			case "int": macro : Int;
+			case "float": macro : Float;
+			case "String": macro : String;
+			case "Variant": macro : Dynamic;
+			case _: TPath({
+				pack: getPack(),
+				name: typeString
+			});
+		}
 	}
 
 	function getReturnType(typeString: Null<String>): ComplexType {
