@@ -1,7 +1,3 @@
-**NOTE: This project is in development. The README below explains how things *should* work, but might not at the moment.**
-
-&nbsp;
-
 # Godot Bindings Generator for Haxe
 
 _Generates target-agnostic Godot bindings for Haxe._
