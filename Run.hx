@@ -28,8 +28,6 @@ function main() {
 
 	// try {
 		final typeDefinitions = godot.Bindings.generate(jsonPath);
-		trace(jsonPath, outputDir);
-		trace(typeDefinitions.length);
 		godot.Bindings.output(outputDir, typeDefinitions);
 	// } catch(e) {
 	// 	Sys.println('ERROR:\n${e.message}');
