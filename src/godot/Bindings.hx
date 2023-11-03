@@ -291,6 +291,7 @@ class Bindings {
 				} : FunctionArg))
 			}),
 			meta: makeMetadata(
+				macro native($v{utilityFunction.name}),
 				macro category($v{utilityFunction.category}),
 				macro is_vararg($v{utilityFunction.is_vararg}),
 				macro hash($v{utilityFunction.hash})
