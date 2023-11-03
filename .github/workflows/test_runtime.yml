@@ -31,6 +31,13 @@ jobs:
 
       - name: Check Haxe Version
         run: haxe -version
+      
+      - name: LS 1
+        run: ls
+
+      - name: LS 2
+        working-directory: godot
+        run: ls
 
       - name: Check Godot Version
         run: godot/godot/godot --version
