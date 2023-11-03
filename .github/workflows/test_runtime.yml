@@ -27,5 +27,12 @@ jobs:
       - name: Create Bindings
         run: haxelib run godot-api-generator "data/extension_api.json" godot
 
+      - name: Do Bindings Exist?
+        run: dir
+
+      - name: Do Bindings Exist? 2
+        working-directory: godot
+        run: dir
+
       - name: Test DevEnv.hxml
         run: haxe DevEnv.hxml
