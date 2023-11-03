@@ -31,23 +31,12 @@ jobs:
 
       - name: Check Haxe Version
         run: haxe -version
-      
-      - name: LS 1
-        run: ls
-
-      - name: LS 2
-        working-directory: godot
-        run: ls
-      
-      - name: LS 3
-        working-directory: godot/godot
-        run: ls
 
       - name: Check Godot Version
-        run: godot/godot/godot --version
+        run: godot/godot/Godot_v4.1.3-stable_linux.x86_64 --version
 
       - name: Generate JSON API
-        run: godot/godot/godot --dump-extension-api-with-docs extension_api.json
+        run: godot/godot/Godot_v4.1.3-stable_linux.x86_64 --dump-extension-api-with-docs extension_api.json
 
       - name: Setup Library
         run: haxelib git godot-api-generator .
