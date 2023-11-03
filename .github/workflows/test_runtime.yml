@@ -38,6 +38,10 @@ jobs:
       - name: LS 2
         working-directory: godot
         run: ls
+      
+      - name: LS 3
+        working-directory: godot/godot
+        run: ls
 
       - name: Check Godot Version
         run: godot/godot/godot --version
