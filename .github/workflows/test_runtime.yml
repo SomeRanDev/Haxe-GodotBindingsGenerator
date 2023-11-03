@@ -33,7 +33,7 @@ jobs:
         run: haxe -version
 
       - name: Check Godot Version
-        run: godot --version
+        run: "./godot/godot/godot" --version
 
       - name: Generate JSON API
         run: "./godot/godot/godot" --dump-extension-api-with-docs extension_api.json
