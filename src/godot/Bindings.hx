@@ -44,7 +44,9 @@ class Bindings {
   
 		final printer = new Printer();
 		for(definition in typeDefinitions) {
+			trace(FileSystem.absolutePath(outputPath));
 			final p = Path.join([outputPath, definition.name + ".hx"]);
+			trace(FileSystem.absolutePath(p));
 			File.saveContent(p, printer.printTypeDefinition(definition));
 
 			trace(File.getContent(p));
