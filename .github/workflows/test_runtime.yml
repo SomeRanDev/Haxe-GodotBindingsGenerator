@@ -21,8 +21,11 @@ jobs:
       - name: Check Haxe Version
         run: haxe -version
 
+      - name: EXPOSED
+        run: echo ${GITHUB_WORKSPACE}
+
       - name: Setup Library
-        run: haxelib git godot-api-generator ${GITHUB_WORKSPACE}
+        run: haxelib git godot-api-generator "${GITHUB_WORKSPACE}"
 
       - name: Create Bindings
         working-directory: ${GITHUB_WORKSPACE}
