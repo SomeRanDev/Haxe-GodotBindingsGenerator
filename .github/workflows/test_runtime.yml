@@ -47,7 +47,7 @@ jobs:
         run: ./godot/godot/Godot_v4.1.3-stable_win64.exe --version
 
       - name: Generate JSON API
-        run: generate.bat
+        run: generate
 
       - name: Setup Library
         run: haxelib git godot-api-generator .
