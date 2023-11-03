@@ -15,14 +15,14 @@ jobs:
         with:
           haxe-version: 4.3.2
 
+      - name: Setup Library
+        run: haxelib git godot-api-generator .
+
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Check Haxe Version
         run: haxe -version
-
-      - name: Setup Library
-        run: haxelib git godot-api-generator .
 
       - name: Create Bindings
         working-directory: .
