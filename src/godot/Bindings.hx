@@ -2,6 +2,8 @@ package godot;
 
 import godot.bindings.Options;
 
+import godot.ExtensionApi.GlobalConstant;
+import godot.ExtensionApi.GlobalEnum;
 import godot.ExtensionApi.UtilityFunction;
 
 import haxe.Json;
@@ -9,12 +11,17 @@ import haxe.io.Path;
 
 import haxe.macro.Context;
 import haxe.macro.Expr;
+#if (haxe >= version("4.3.2"))
+import haxe.macro.Expr.AbstractFlag;
+#end
 import haxe.macro.Printer;
 
 import sys.FileSystem;
 import sys.io.File;
 
 using godot.bindings.NullableArrayTools;
+
+#if eval
 
 class Bindings {
 	/**
@@ -83,7 +90,8 @@ class Bindings {
 			pack: getPack(),
 			pos: makeEmptyPosition(),
 			fields: fields,
-			kind: TDClass(null, null, false, false, false)
+			kind: TDClass(null, null, false, false, false),
+			isExtern: true
 		}
 	}
 
@@ -106,13 +114,24 @@ class Bindings {
 			switch(d.expr) {
 				case ECall(expr, params): {
 					final name = switch(expr.expr) {
-						case EConst(CIdent(ident)): ident;
+						case EConst(CIdent(ident)): ":" + ident;
+						case EConst(CString(s)): s;
 						case _: throw "Invalid input for `makeMetadata`.";
 					}
 					result.push({
-						name: ":" + name,
+						name: name,
 						pos: makeEmptyPosition(),
 						params: params
+					});
+				}
+				case EConst(CString(ident)) | EConst(CIdent(ident)): {
+					if(!StringTools.startsWith(ident, ":")) {
+						ident = ":" + ident;
+					}
+					result.push({
+						name: ident,
+						pos: makeEmptyPosition(),
+						params: []
 					});
 				}
 				case _: throw "Invalid input for `makeMetadata`.";
@@ -129,7 +148,14 @@ class Bindings {
 		final data = loadData(extensionJsonPath);
 		final result: Array<TypeDefinition> = [];
 
-		result.push(makeClassTypeDefinition("Godot", data.utility_functions.map(generateUtilityFunction)));
+		result.push(makeClassTypeDefinition("Godot", []
+			.concat(data.utility_functions.map(generateUtilityFunction))
+			.concat(data.global_constants.map(generateGlobalConstant))
+		));
+
+		for(e in data.global_enums) {
+			result.push(generateGlobalEnum(e));
+		}
 
 		return result;
 	}
@@ -154,4 +180,48 @@ class Bindings {
 			doc: utilityFunction.description
 		}
 	}
+
+	function generateGlobalConstant(globalConstant: GlobalConstant): Field {
+		return {
+			name: globalConstant.name,
+			pos: makeEmptyPosition(),
+			access: [APublic, AStatic, AExtern],
+			kind: FVar(macro : Int, null), // not sure if always typing as `Int` is correct?
+			meta: makeMetadata(
+				macro is_bitfield($v{globalConstant.is_bitfield})
+			),
+			doc: globalConstant.description
+		}
+	}
+
+	function generateGlobalEnum(globalEnum: GlobalEnum): TypeDefinition {
+		return {
+			name: globalEnum.name,
+			pack: getPack(),
+			pos: makeEmptyPosition(),
+			fields: globalEnum.values.map(function(godotEnumValue): Field {
+				return {
+					name: godotEnumValue.name,
+					pos: makeEmptyPosition(),
+					access: [APublic, AStatic],
+					kind: FVar(macro : Int, macro $v{godotEnumValue.value}),
+					doc: godotEnumValue.description
+				}
+			}),
+			meta: makeMetadata(
+				#if (haxe < version("4.3.2"))
+				macro ":enum"(),
+				#end
+				macro is_bitfield($v{globalEnum.is_bitfield})
+			),
+			kind: TDAbstract(macro : Int, 
+				#if (haxe >= version("4.3.2"))
+				[AbstractFlag.AbEnum]
+				#else
+				#end
+			)
+		}
+	}
 }
+
+#end
