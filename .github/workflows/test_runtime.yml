@@ -44,7 +44,7 @@ jobs:
         run: godot/godot/Godot_v4.1.3-stable_linux.x86_64 --version
 
       - name: Generate JSON API
-        run: generate.sh
+        run: ./generate.sh
 
       - name: Setup Library
         run: haxelib git godot-api-generator .
