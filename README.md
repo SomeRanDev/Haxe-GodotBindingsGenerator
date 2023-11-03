@@ -11,9 +11,25 @@ If you just want un-modified, basic Godot bindings, you can do that too!
 &nbsp;
 
 ## Installation Table of Epicness
+
+First intall via haxelib.
+```
+haxelib install godot-api-generator
+```
+
+&nbsp;
+
+Next you can either generate basic bindings...
+```
+haxelib run godot-api-generator [path-to-json] [output-dir]
+```
+
+&nbsp;
+
+Or you can install the library and create your own generator.
+
 | # | What to do | What to write |
 | - | ------ | ------ |
-| 1 | Install via haxelib. | <pre>haxelib install godot-api-generator</pre> |
-| 2 | Add the lib to your `.hxml` file or compile command. | <pre lang="hxml">-lib godot-api-generator</pre> |
-| 3a | Generate bindings using `extension_api.json`. | <pre>haxelib run godot-api-generator [path-to-json] [output-dir]</pre> |
-| 3b | OR use in your own generator. | <pre lang="haxe">final haxeTypes: Array&lt;TypeDefinition&gt; = godot.Bindings.generate("path-to-json");</pre> |
+| 1 | Add the lib to your `.hxml` file or compile command. | <pre lang="hxml">-lib godot-api-generator</pre> |
+| 2 | Get the `TypeDefinition`s and modify to your liking. | <pre lang="haxe">final haxeTypes: Array&lt;TypeDefinition&gt; = godot.Bindings.generate("path-to-json");</pre> |
+| 3 | Output the bindings to a folder. | <pre lang="haxe">godot.Bindings.output("output-folder", haxeTypes);</pre> |
