@@ -11,3 +11,7 @@ function maybeMap<T, U>(self: Null<Array<T>>, callback: (T) -> U): Array<U> {
 	}
 	return result;
 }
+
+inline function denullify<T>(self: Null<Array<T>>): Array<T> {
+	return self == null ? [] : self;
+}

@@ -2,6 +2,8 @@ package godot;
 
 import godot.bindings.Options;
 
+import godot.ExtensionApi.BuiltinClass;
+import godot.ExtensionApi.Class as GodotClass;
 import godot.ExtensionApi.GlobalConstant;
 import godot.ExtensionApi.GlobalEnum;
 import godot.ExtensionApi.UtilityFunction;
@@ -78,6 +80,20 @@ class Bindings {
 	function new(extensionJsonPath: String, options: Options) {
 		this.extensionJsonPath = extensionJsonPath;
 		this.options = options;
+	}
+
+	function processTypeName(name: String): String {
+		return switch(name) {
+			case "String" | "Array": "Godot" + name;
+			case _: StringTools.replace(name, ".", "_");
+		}
+	}
+
+	function processIdentifier(name: String): String {
+		return switch(name) {
+			case "default": "_" + name;
+			case _: name;
+		}
 	}
 
 	function getPack(): Array<String> {
@@ -167,18 +183,25 @@ class Bindings {
 			result.push(generateGlobalEnum(e));
 		}
 
+		for(builtin in data.builtin_classes) {
+			if(builtin.name == "bool" || builtin.name == "int" || builtin.name == "float") {
+				continue;
+			}
+			result.push(generateBuiltinClass(builtin));
+		}
+
 		return result;
 	}
 
 	function generateUtilityFunction(utilityFunction: UtilityFunction): Field {
 		return {
-			name: utilityFunction.name,
+			name: processIdentifier(utilityFunction.name),
 			pos: makeEmptyPosition(),
 			access: [APublic, AStatic, AExtern],
 			kind: FFun({
 				ret: getReturnType(utilityFunction.return_type),
 				args: utilityFunction.arguments.maybeMap(t -> ({
-					name: t.name,
+					name: processIdentifier(t.name),
 					type: getType(t.type)
 				} : FunctionArg))
 			}),
@@ -193,7 +216,7 @@ class Bindings {
 
 	function generateGlobalConstant(globalConstant: GlobalConstant): Field {
 		return {
-			name: globalConstant.name,
+			name: processIdentifier(globalConstant.name),
 			pos: makeEmptyPosition(),
 			access: [APublic, AStatic, AExtern],
 			kind: FVar(macro : Int, null), // not sure if always typing as `Int` is correct?
@@ -206,12 +229,12 @@ class Bindings {
 
 	function generateGlobalEnum(globalEnum: GlobalEnum): TypeDefinition {
 		return {
-			name: globalEnum.name,
+			name: processTypeName(globalEnum.name),
 			pack: getPack(),
 			pos: makeEmptyPosition(),
 			fields: globalEnum.values.map(function(godotEnumValue): Field {
 				return {
-					name: godotEnumValue.name,
+					name: processIdentifier(godotEnumValue.name),
 					pos: makeEmptyPosition(),
 					access: [APublic, AStatic],
 					kind: FVar(macro : Int, macro $v{godotEnumValue.value}),
@@ -230,6 +253,128 @@ class Bindings {
 				#else
 				#end
 			)
+		}
+	}
+
+	function generateBuiltinClass(cls: BuiltinClass): TypeDefinition {
+		final fields = [];
+		final fieldAccess = [APublic];
+
+		for(constructor in cls.constructors.denullify()) {
+			final args = constructor.arguments.maybeMap(function(arg): FunctionArg {
+				return {
+					name: processIdentifier(arg.name),
+					type: getType(arg.type)
+				}
+			});
+
+			if(constructor.arguments?.length == 0 || cls.constructors?.length == 1) {
+				fields.push({
+					name: "new",
+					pos: makeEmptyPosition(),
+					access: fieldAccess,
+					kind: FFun({ args: args }),
+					meta: [],
+					doc: constructor.description
+				});
+			} else {
+				fields.push({
+					name: "make",
+					pos: makeEmptyPosition(),
+					access: fieldAccess.concat([AStatic, AOverload]),
+					kind: FFun({ args: args, ret: getType(processTypeName(cls.name)) }),
+					meta: [],
+					doc: constructor.description
+				});
+			}
+		}
+
+		for(member in cls.members.denullify()) {
+			fields.push({
+				name: processIdentifier(member.name),
+				pos: makeEmptyPosition(),
+				access: fieldAccess,
+				kind: FVar(getType(member.type), null),
+				meta: [],
+				doc: member.description
+			});
+		}
+
+		for(constant in cls.constants.denullify()) {
+			fields.push({
+				name: processIdentifier(constant.name),
+				pos: makeEmptyPosition(),
+				access: fieldAccess.concat([AStatic]),
+				kind: FVar(getType(constant.type), null),
+				meta: makeMetadata(
+					macro value($v{constant.value})
+				),
+				doc: constant.description
+			});
+		}
+
+		for(method in cls.methods.denullify()) {
+			fields.push({
+				name: processIdentifier(method.name),
+				pos: makeEmptyPosition(),
+				access: fieldAccess,
+				kind: FFun({
+					args: method.arguments.maybeMap(function(arg): FunctionArg {
+						return {
+							name: processIdentifier(arg.name),
+							type: getType(arg.type),
+							opt: arg.default_value != null,
+							meta: makeMetadata(
+								macro default_value($v{arg.default_value})
+							),
+							// value: Null<Expr>
+						}
+					}),
+					ret: getReturnType(method.return_type)
+				}),
+				meta: makeMetadata(
+					macro is_vararg($v{method.is_vararg}),
+					macro is_const($v{method.is_const}),
+					macro is_static($v{method.is_static}),
+					macro hash($v{method.hash})
+				),
+				doc: method.description
+			});
+		}
+
+		/**
+			TODO: two members of `BuiltinClass`:
+
+			enums: MaybeArray<{
+				name: String,
+				values: MaybeArray<{
+					name: String,
+					value: String,
+					description: Null<String>
+				}>,
+				description: Null<String>
+			}>,
+			operators: MaybeArray<{
+				name: String,
+				right_type: Null<String>,
+				return_type: String,
+				description: Null<String>
+			}>,
+		**/
+
+		return {
+			name: processTypeName(cls.name),
+			pack: getPack(),
+			pos: makeEmptyPosition(),
+			fields: fields,
+			kind: TDClass(null, null, false, false, false),
+			isExtern: true,
+			meta: makeMetadata(
+				macro indexing_return_type($v{cls.indexing_return_type}),
+				macro is_keyed($v{cls.is_keyed}),
+				macro has_destructor($v{cls.has_destructor})
+			),
+			doc: cls.description
 		}
 	}
 }
