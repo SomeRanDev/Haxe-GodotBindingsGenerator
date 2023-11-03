@@ -21,21 +21,13 @@ jobs:
       - name: Check Haxe Version
         run: haxe -version
 
-      - name: EXPOSED
-        run: |
-          echo ${{ github.workspace }}
-
-      - name: EXPOSED
-        run: |
-          echo $MY_WORK_DIR
-
       - name: Setup Library
         run: |
           haxelib git godot-api-generator "${{ github.workspace }}"
 
       - name: Create Bindings
         working-directory: ${{ github.workspace }}
-        run: haxelib run godot-api-generator "data/extension_api.json" ./godot
+        run: haxelib run godot-api-generator "data/extension_api.json" "${{ github.workspace }}/godot"
 
       - name: DIR
         run: dir
