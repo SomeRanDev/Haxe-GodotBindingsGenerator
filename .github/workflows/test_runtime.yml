@@ -25,6 +25,7 @@ jobs:
         run: haxelib git godot-api-generator .
 
       - name: Create Bindings
+        working-directory: .
         run: haxelib run godot-api-generator "data/extension_api.json" ./godot
 
       - name: DIR
