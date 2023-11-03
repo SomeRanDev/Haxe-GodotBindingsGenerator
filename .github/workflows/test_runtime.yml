@@ -27,7 +27,7 @@ jobs:
 
       - name: Extract Godot
         working-directory: godot
-        run: 7z x Godot_v4.1.3-stable_linux.x86_64.zip -ogodot
+        run: 7z x Godot_v4.1.3-stable_win64.exe.zip -ogodot
 
       - name: Overwrite file
         uses: "DamianReeves/write-file-action@master"
