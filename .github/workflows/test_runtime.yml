@@ -22,7 +22,7 @@ jobs:
         uses: suisei-cn/actions-download-file@v1.4.0
         id: godotZip  # Remember to give an ID if you need the output
         with:
-          url: "https://github.com/godotengine/godot/releases/download/4.1.3-stable/Godot_v4.1.3-stable_linux.x86_64.zip"
+          url: "https://github.com/godotengine/godot/releases/download/4.1.3-stable/Godot_v4.1.3-stable_win64.exe.zip"
           target: godot/
 
       - name: Extract Godot
@@ -35,13 +35,13 @@ jobs:
           path: ./generate.bat
           write-mode: overwrite
           contents: |
-            godot/godot/Godot_v4.1.3-stable_linux.x86_64 --headless --dump-extension-api-with-docs extension_api.json
+            "./godot/godot/Godot_v4.1.3-stable_win64.exe" --headless --dump-extension-api-with-docs extension_api.json
 
       - name: Check Haxe Version
         run: haxe -version
 
       - name: Check Godot Version
-        run: godot/godot/Godot_v4.1.3-stable_linux.x86_64 --version
+        run: "./godot/godot/Godot_v4.1.3-stable_win64.exe" --version
 
       - name: Generate JSON API
         run: ./generate.bat
