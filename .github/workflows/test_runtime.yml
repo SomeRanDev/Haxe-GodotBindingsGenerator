@@ -42,6 +42,14 @@ jobs:
       - name: List all files
         run: dir
 
+      - name: List all files 2
+        working-directory: godot
+        run: dir
+
+      - name: List all files 3
+        working-directory: godot/godot
+        run: dir
+
       - name: Move JSON to Top Directory
         run: mv ./godot/godot/extension_api.json extension_api.json
 
