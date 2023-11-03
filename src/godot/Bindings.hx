@@ -82,6 +82,11 @@ class Bindings {
 		this.options = options;
 	}
 
+	/**
+		Returns the type with underscores instead of dots.
+
+		Will also prepend "Godot" if "String" or "Array" is passed.
+	**/
 	function processTypeName(name: String): String {
 		return switch(name) {
 			case "String" | "Array": "Godot" + name;
@@ -89,6 +94,12 @@ class Bindings {
 		}
 	}
 
+	/**
+		Checks if the identifier is a reserved keyword in Haxe.
+		If it is, it will prepend an underscore.
+
+		Otherwise, the identifier is returned unmodified.
+	**/
 	function processIdentifier(name: String): String {
 		return switch(name) {
 			case "default" | "operator" | "class" | "enum" | "in" | "override" | "interface" | "var" | "new" | "function": "_" + name;
@@ -96,6 +107,10 @@ class Bindings {
 		}
 	}
 
+	/**
+		Processes the "description" fields before being assigned to "doc" fields in Haxe.
+		Ensures there are no closing comments (* /) that would break Haxe's doc comments.
+	**/
 	function processDescription(description: Null<String>): String {
 		if(description == null) {
 			return null;
@@ -106,10 +121,16 @@ class Bindings {
 		return description;
 	}
 
+	/**
+		Get the "pack" that should be used by the Godot Haxe binding types.
+	**/
 	function getPack(): Array<String> {
 		return [options.basePackage];
 	}
 
+	/**
+		Generates a very basic class `TypeDefinition` given a name and list of `Field`s.
+	**/
 	function makeClassTypeDefinition(name: String, fields: Array<Field>): TypeDefinition {
 		return {
 			name: name,
@@ -121,10 +142,17 @@ class Bindings {
 		}
 	}
 
+	/**
+		Generates a blank `Position`.
+		Useful to fill in "pos" field for `TypeDefinition`, `Field`, and other AST objects.
+	**/
 	function makeEmptyPosition(): Position {
 		return #if eval Context.currentPos() #else { file: "", min: 0, max: 0 } #end;
 	}
 
+	/**
+		Converts a `String` of a Godot type to the Haxe `ComplexType` equivalent.
+	**/
 	function getType(typeString: String): ComplexType {
 		final typearrPrefix = "typedarray::";
 		if(StringTools.startsWith(typeString, typearrPrefix)) {
@@ -155,10 +183,18 @@ class Bindings {
 		}
 	}
 
+	/**
+		The same as `getType`, but can accept `null`.
+		If `null` is passed, `Void` `ComplexType` is returned.
+	**/
 	function getReturnType(typeString: Null<String>): ComplexType {
 		return typeString == null ? (macro : Void) : getType(typeString);
 	}
 
+	/**
+		Extracts the `TypePath` from a `TPath` `ComplexType`.
+		Throws an error if the `ComplexType` is not a `TPath`.
+	**/
 	function getTypePathFromComplex(cp: ComplexType): TypePath {
 		return switch(cp) {
 			case TPath(p): p;
@@ -166,7 +202,16 @@ class Bindings {
 		}
 	}
 
-	function makeMetadata(...data: Expr) {
+	/**
+		Easily generates a `Metadata` instance given one or more arguments of `Expr`.
+		The `Expr` must be a call or identifier and can use `String`.
+
+		```haxe
+		// generates @:native("test") and @-something
+		makeMetadata(macro native("test"), macro "-something");
+		```
+	**/
+	function makeMetadata(...data: Expr): Metadata {
 		final result = [];
 
 		for(d in data) {
@@ -230,6 +275,9 @@ class Bindings {
 		return result;
 	}
 
+	/**
+		Generates the `TypeDefinition` from a "utility_functions" object from `extension_api.json`.
+	**/
 	function generateUtilityFunction(utilityFunction: UtilityFunction): Field {
 		return {
 			name: processIdentifier(utilityFunction.name),
@@ -251,6 +299,9 @@ class Bindings {
 		}
 	}
 
+	/**
+		Generates the `TypeDefinition` from a "global_constants" object from `extension_api.json`.
+	**/
 	function generateGlobalConstant(globalConstant: GlobalConstant): Field {
 		return {
 			name: processIdentifier(globalConstant.name),
@@ -264,6 +315,9 @@ class Bindings {
 		}
 	}
 
+	/**
+		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.
+	**/
 	function generateGlobalEnum(globalEnum: GlobalEnum): TypeDefinition {
 		return {
 			name: processTypeName(globalEnum.name),
@@ -293,6 +347,9 @@ class Bindings {
 		}
 	}
 
+	/**
+		Generates the `TypeDefinition` from a "builtin_classes" object from `extension_api.json`.
+	**/
 	function generateBuiltinClass(cls: BuiltinClass): TypeDefinition {
 		final fields = [];
 		final fieldAccess = [APublic];
@@ -415,6 +472,9 @@ class Bindings {
 		}
 	}
 
+	/**
+		Generates the `TypeDefinition` from a "classes" object from `extension_api.json`.
+	**/
 	function generateClass(cls: GodotClass): TypeDefinition {
 		final fields = [];
 		final fieldAccess = [APublic];
