@@ -1,6 +1,7 @@
 # Exists so VSCode actually works and can test on Github
 -cp src
+-dce no
 -lib godot-extension-api-typings
 --macro nullSafety("godot")
 --define dump=pretty
-godot.Bindings
+godot
