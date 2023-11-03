@@ -15,9 +15,16 @@ jobs:
         with:
           haxe-version: 4.3.0
 
-      - uses: paulloz/godot-action@v1.2.2
+      - name: Download Godot
+        uses: suisei-cn/actions-download-file@v1.4.0
+        id: godotZip  # Remember to give an ID if you need the output
         with:
-          version: 4.1.3
+          url: "https://github.com/godotengine/godot/releases/download/4.1.3-stable/Godot_v4.1.3-stable_linux.x86_64.zip"
+          target: godot/
+
+      - name: Extract Godot
+        working-directory: godot
+        run: 7z x Godot_v4.1.3-stable_linux.x86_64.zip -ogodot
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -29,7 +36,7 @@ jobs:
         run: godot --version
 
       - name: Generate JSON API
-        run: godot --dump-extension-api-with-docs extension_api.json
+        run: "./godot/godot/godot" --dump-extension-api-with-docs extension_api.json
 
       - name: Setup Library
         run: haxelib git godot-api-generator .
