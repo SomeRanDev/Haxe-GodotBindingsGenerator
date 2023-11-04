@@ -5,19 +5,22 @@ function main() {
 	var outputDir = "godot_bindings";
 
 	final args = Sys.args();
-	switch(args) {
+	final cwd = switch(args) {
 		case ["help", _]: {
 			help();
 			return;
 		}
-		case [_]: {
+		case [cwd]: {
+			cwd;
 		}
-		case [_jsonPath, _]: {
+		case [_jsonPath, cwd]: {
 			jsonPath = _jsonPath;
+			cwd;
 		}
-		case [_jsonPath, _outputDir, _]: {
+		case [_jsonPath, _outputDir, cwd]: {
 			jsonPath = _jsonPath;
 			outputDir = _outputDir;
+			cwd;
 		}
 		case _: {
 			Sys.println("** Invalid arguments. **\n");
@@ -26,12 +29,14 @@ function main() {
 		}
 	}
 
-	// try {
+	Sys.setCwd(cwd);
+
+	try {
 		final typeDefinitions = godot.Bindings.generate(jsonPath);
 		godot.Bindings.output(outputDir, typeDefinitions);
-	// } catch(e) {
-	// 	Sys.println('ERROR:\n${e.message}');
-	// }
+	} catch(e) {
+		Sys.println('ERROR:\n${e.message}');
+	}
 }
 
 function help() {

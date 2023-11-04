@@ -61,7 +61,7 @@ class Bindings {
 				throw 'Could not parse ${extensionJsonPath}. ${e}';
 			}
 		}
-		throw 'Could not find ${extensionJsonPath}.';
+		throw 'Could not find ${extensionJsonPath}.\nCurrent working directory: ${Sys.getCwd()}';
 	}
 
 	/**
