@@ -433,7 +433,6 @@ class Bindings {
 					ret: getReturnType(method.return_type)
 				}),
 				meta: makeMetadata(
-					macro bindings_api_type("builtin_class"),
 					macro is_vararg($v{method.is_vararg}),
 					macro is_const($v{method.is_const}),
 					macro is_static($v{method.is_static}),
@@ -471,7 +470,7 @@ class Bindings {
 			kind: TDClass(null, null, false, false, false),
 			isExtern: true,
 			meta: makeMetadata(
-				macro bindings_api_type("global_enum"),
+				macro bindings_api_type("builtin_classes"),
 				macro indexing_return_type($v{cls.indexing_return_type}),
 				macro is_keyed($v{cls.is_keyed}),
 				macro has_destructor($v{cls.has_destructor})
