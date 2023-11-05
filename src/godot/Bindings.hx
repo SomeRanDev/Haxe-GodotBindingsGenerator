@@ -291,6 +291,7 @@ class Bindings {
 				} : FunctionArg))
 			}),
 			meta: makeMetadata(
+				macro bindings_api_type("utility_function"),
 				macro native($v{utilityFunction.name}),
 				macro category($v{utilityFunction.category}),
 				macro is_vararg($v{utilityFunction.is_vararg}),
@@ -310,6 +311,7 @@ class Bindings {
 			access: [APublic, AStatic, AExtern],
 			kind: FVar(macro : Int, null), // not sure if always typing as `Int` is correct?
 			meta: makeMetadata(
+				macro bindings_api_type("global_constant"),
 				macro is_bitfield($v{globalConstant.is_bitfield})
 			),
 			doc: processDescription(globalConstant.description)
@@ -337,6 +339,7 @@ class Bindings {
 				#if (haxe < version("4.3.2"))
 				macro ":enum"(),
 				#end
+				macro bindings_api_type("global_enum"),
 				macro is_bitfield($v{globalEnum.is_bitfield})
 			),
 			kind: TDAbstract(macro : Int, 
@@ -378,7 +381,9 @@ class Bindings {
 					pos: makeEmptyPosition(),
 					access: fieldAccess.concat([AStatic, AOverload]),
 					kind: FFun({ args: args, ret: getType(processTypeName(cls.name)) }),
-					meta: [],
+					meta: makeMetadata(
+						macro constructor
+					),
 					doc: processDescription(constructor.description)
 				});
 			}
@@ -428,6 +433,7 @@ class Bindings {
 					ret: getReturnType(method.return_type)
 				}),
 				meta: makeMetadata(
+					macro bindings_api_type("builtin_class"),
 					macro is_vararg($v{method.is_vararg}),
 					macro is_const($v{method.is_const}),
 					macro is_static($v{method.is_static}),
@@ -465,6 +471,7 @@ class Bindings {
 			kind: TDClass(null, null, false, false, false),
 			isExtern: true,
 			meta: makeMetadata(
+				macro bindings_api_type("global_enum"),
 				macro indexing_return_type($v{cls.indexing_return_type}),
 				macro is_keyed($v{cls.is_keyed}),
 				macro has_destructor($v{cls.has_destructor})
@@ -600,6 +607,7 @@ class Bindings {
 			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits))), null, false, false, false),
 			isExtern: true,
 			meta: makeMetadata(
+				macro bindings_api_type("class"),
 				macro is_refcounted($v{cls.is_refcounted}),
 				macro is_instantiable($v{cls.is_instantiable}),
 				macro api_type($v{cls.api_type})

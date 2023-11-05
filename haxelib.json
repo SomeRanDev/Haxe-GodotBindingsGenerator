@@ -12,9 +12,9 @@
 		"bindings"
 	],
 	"dependencies": {
-		"godot-extension-api-typings": "1.0.2"
+		"godot-extension-api-typings": "1.0.3"
 	},
 	"classPath": "src/",
-	"releasenote": "Properly use current working directory for `haxelib run` script.",
+	"releasenote": "Add metadata for bindings type.",
 	"contributors": ["SomeRanDev"]
 }
