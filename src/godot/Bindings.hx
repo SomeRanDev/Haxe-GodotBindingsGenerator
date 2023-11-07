@@ -290,7 +290,7 @@ class Bindings {
 				for(className => inherits in hierarchyData.get(cls.name).trustMe()) {
 					final m = typeDefinition.meta ?? [];
 					m.push({
-						name: "is_" + className.toLowerCase(),
+						name: ":is_" + className.toLowerCase(),
 						params: [#if eval macro $v{inherits} #end],
 						pos: makeEmptyPosition()
 					});
