@@ -374,6 +374,7 @@ class Bindings {
 			}),
 			meta: makeMetadata(
 				#if eval
+				macro generated_godot_api,
 				macro bindings_api_type("utility_function"),
 				macro native($v{utilityFunction.name}),
 				macro category($v{utilityFunction.category}),
@@ -396,6 +397,7 @@ class Bindings {
 			kind: FVar(macro : Int, null), // not sure if always typing as `Int` is correct?
 			meta: makeMetadata(
 				#if eval
+				macro generated_godot_api,
 				macro bindings_api_type("global_constant"),
 				macro is_bitfield($v{globalConstant.is_bitfield})
 				#end
@@ -426,6 +428,7 @@ class Bindings {
 					#if (haxe < version("4.3.2"))
 					macro ":enum"(),
 					#end
+					macro generated_godot_api,
 					macro bindings_api_type("global_enum"),
 					macro is_bitfield($v{globalEnum.is_bitfield})
 				#end
@@ -565,6 +568,7 @@ class Bindings {
 			isExtern: true,
 			meta: makeMetadata(
 				#if eval
+				macro generated_godot_api,
 				macro bindings_api_type("builtin_classes"),
 				macro indexing_return_type($v{cls.indexing_return_type}),
 				macro is_keyed($v{cls.is_keyed}),
@@ -715,6 +719,7 @@ class Bindings {
 			isExtern: true,
 			meta: makeMetadata(
 				#if eval
+				macro generated_godot_api,
 				macro bindings_api_type("class"),
 				macro is_refcounted($v{cls.is_refcounted}),
 				macro is_instantiable($v{cls.is_instantiable}),
