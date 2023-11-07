@@ -1,6 +1,6 @@
 {
 	"name": "godot-api-generator",
-	"version": "1.0.2",
+	"version": "1.1.0",
 	"description": "Generates target-agnostic Godot bindings for Haxe.",
 	"url": "https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator",
 	"license": "MIT",
@@ -15,6 +15,6 @@
 		"godot-extension-api-typings": "1.0.2"
 	},
 	"classPath": "src/",
-	"releasenote": "Add metadata for bindings type.",
+	"releasenote": "Added `generateHierarchyMeta` and `fileComment` options.",
 	"contributors": ["SomeRanDev"]
 }
