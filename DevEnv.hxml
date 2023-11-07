@@ -3,5 +3,4 @@
 -dce no
 -lib godot-extension-api-typings
 --macro nullSafety("godot")
---define dump=pretty
 godot
