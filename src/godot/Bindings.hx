@@ -22,6 +22,7 @@ import sys.FileSystem;
 import sys.io.File;
 
 using godot.bindings.NullableArrayTools;
+using godot.bindings.NullTools;
 
 class Bindings {
 	/**
@@ -109,7 +110,7 @@ class Bindings {
 		Processes the "description" fields before being assigned to "doc" fields in Haxe.
 		Ensures there are no closing comments (* /) that would break Haxe's doc comments.
 	**/
-	function processDescription(description: Null<String>): String {
+	function processDescription(description: Null<String>): Null<String> {
 		if(description == null) {
 			return null;
 		}
@@ -272,12 +273,14 @@ class Bindings {
 
 			// Generate additional metadata from `generateHierarchyMeta`
 			if(hierarchyData != null && hierarchyData.exists(cls.name)) {
-				for(className => inherits in hierarchyData.get(cls.name)) {
-					typeDefinition.meta.push({
+				for(className => inherits in hierarchyData.get(cls.name).trustMe()) {
+					final m = typeDefinition.meta ?? [];
+					m.push({
 						name: "is_" + className.toLowerCase(),
 						params: [#if eval macro $v{inherits} #end],
 						pos: makeEmptyPosition()
 					});
+					typeDefinition.meta = m;
 				}
 			}
 
@@ -295,9 +298,6 @@ class Bindings {
 		final hierarchyData: Map<String, Map<String, Bool>> = [];
 		final unprocessedChildren: Map<String, Array<GodotClass>> = [];
 
-		var str: String = null;
-		trace(str.length);
-
 		function processHierarchy(cls: GodotClass) {
 			if(hierarchyData.exists(cls.name)) {
 				return;
@@ -313,6 +313,9 @@ class Bindings {
 				hierarchyData.set(cls.name, map);
 			} else if(hierarchyData.exists(superClass)) {
 				final map = Reflect.copy(hierarchyData.get(superClass));
+				if(map == null) {
+					throw "Reflect.copy failed.";
+				}
 				if(isBase) {
 					map.set(cls.name, true);
 				}
@@ -321,12 +324,12 @@ class Bindings {
 				if(!unprocessedChildren.exists(superClass)) {
 					unprocessedChildren.set(superClass, []);
 				}
-				unprocessedChildren.get(superClass).push(cls);
+				unprocessedChildren.get(superClass).trustMe().push(cls);
 				return;
 			}
 
 			if(unprocessedChildren.exists(cls.name)) {
-				for(child in unprocessedChildren.get(cls.name)) {
+				for(child in unprocessedChildren.get(cls.name).trustMe()) {
 					processHierarchy(child);
 				}
 				unprocessedChildren.remove(cls.name);
@@ -635,7 +638,7 @@ class Bindings {
 
 			var name = processIdentifier(method.name);
 			if(renamedMethods.exists(name)) {
-				name = renamedMethods.get(name);
+				name = renamedMethods.get(name).trustMe();
 			}
 
 			fields.push({
