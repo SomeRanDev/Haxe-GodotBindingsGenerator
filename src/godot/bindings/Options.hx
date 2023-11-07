@@ -6,4 +6,5 @@ package godot.bindings;
 @:structInit
 class Options {
 	public var basePackage(default, null): String = "godot";
+	public var generateHierarchyMeta(default, null): Array<String> = ["Node", "Resource"];
 }

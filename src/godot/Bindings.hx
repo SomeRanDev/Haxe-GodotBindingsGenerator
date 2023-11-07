@@ -23,8 +23,6 @@ import sys.io.File;
 
 using godot.bindings.NullableArrayTools;
 
-#if eval
-
 class Bindings {
 	/**
 		Generates a list of `TypeDefinition`s generated from the `extension_api.json` file.
@@ -268,11 +266,78 @@ class Bindings {
 			result.push(generateBuiltinClass(builtin));
 		}
 
+		final hierarchyData = options.generateHierarchyMeta.length > 0 ? generateHierarchyData(data.classes) : null;
 		for(cls in data.classes) {
-			result.push(generateClass(cls));
+			final typeDefinition = generateClass(cls);
+
+			// Generate additional metadata from `generateHierarchyMeta`
+			if(hierarchyData != null && hierarchyData.exists(cls.name)) {
+				for(className => inherits in hierarchyData.get(cls.name)) {
+					typeDefinition.meta.push({
+						name: "is_" + className.toLowerCase(),
+						params: [#if eval macro $v{inherits} #end],
+						pos: makeEmptyPosition()
+					});
+				}
+			}
+
+			result.push(typeDefinition);
 		}
 
 		return result;
+	}
+
+	/**
+		Preemptively iterate through the "classes" and figure out which ones
+		extend from the `generateHierarchyMeta` list.
+	**/
+	function generateHierarchyData(classes: Array<GodotClass>): Map<String, Map<String, Bool>> {
+		final hierarchyData: Map<String, Map<String, Bool>> = [];
+		final unprocessedChildren: Map<String, Array<GodotClass>> = [];
+
+		var str: String = null;
+		trace(str.length);
+
+		function processHierarchy(cls: GodotClass) {
+			if(hierarchyData.exists(cls.name)) {
+				return;
+			}
+
+			final isBase = options.generateHierarchyMeta.contains(cls.name);
+			final superClass = cls.inherits;
+			if(superClass == null || superClass == "Object") {
+				final map: Map<String, Bool> = [];
+				for(m in options.generateHierarchyMeta) {
+					map.set(m, cls.name == m);
+				}
+				hierarchyData.set(cls.name, map);
+			} else if(hierarchyData.exists(superClass)) {
+				final map = Reflect.copy(hierarchyData.get(superClass));
+				if(isBase) {
+					map.set(cls.name, true);
+				}
+				hierarchyData.set(cls.name, map);
+			} else {
+				if(!unprocessedChildren.exists(superClass)) {
+					unprocessedChildren.set(superClass, []);
+				}
+				unprocessedChildren.get(superClass).push(cls);
+				return;
+			}
+
+			if(unprocessedChildren.exists(cls.name)) {
+				for(child in unprocessedChildren.get(cls.name)) {
+					processHierarchy(child);
+				}
+				unprocessedChildren.remove(cls.name);
+			}
+		}
+
+		for(cls in classes) {
+			processHierarchy(cls);
+		}
+
+		return hierarchyData;
 	}
 
 	/**
@@ -291,11 +356,13 @@ class Bindings {
 				} : FunctionArg))
 			}),
 			meta: makeMetadata(
+				#if eval
 				macro bindings_api_type("utility_function"),
 				macro native($v{utilityFunction.name}),
 				macro category($v{utilityFunction.category}),
 				macro is_vararg($v{utilityFunction.is_vararg}),
 				macro hash($v{utilityFunction.hash})
+				#end
 			),
 			doc: processDescription(utilityFunction.description)
 		}
@@ -311,8 +378,10 @@ class Bindings {
 			access: [APublic, AStatic, AExtern],
 			kind: FVar(macro : Int, null), // not sure if always typing as `Int` is correct?
 			meta: makeMetadata(
+				#if eval
 				macro bindings_api_type("global_constant"),
 				macro is_bitfield($v{globalConstant.is_bitfield})
+				#end
 			),
 			doc: processDescription(globalConstant.description)
 		}
@@ -331,16 +400,18 @@ class Bindings {
 					name: processIdentifier(godotEnumValue.name),
 					pos: makeEmptyPosition(),
 					access: [APublic, AStatic],
-					kind: FVar(macro : Int, macro $v{godotEnumValue.value}),
+					kind: FVar(macro : Int, #if eval macro $v{godotEnumValue.value} #end),
 					doc: processDescription(godotEnumValue.description)
 				}
 			}),
 			meta: makeMetadata(
-				#if (haxe < version("4.3.2"))
-				macro ":enum"(),
+				#if eval
+					#if (haxe < version("4.3.2"))
+					macro ":enum"(),
+					#end
+					macro bindings_api_type("global_enum"),
+					macro is_bitfield($v{globalEnum.is_bitfield})
 				#end
-				macro bindings_api_type("global_enum"),
-				macro is_bitfield($v{globalEnum.is_bitfield})
 			),
 			kind: TDAbstract(macro : Int, 
 				#if (haxe >= version("4.3.2"))
@@ -407,7 +478,9 @@ class Bindings {
 				access: fieldAccess.concat([AStatic]),
 				kind: FVar(getType(constant.type), null),
 				meta: makeMetadata(
+					#if eval
 					macro value($v{constant.value})
+					#end
 				),
 				doc: processDescription(constant.description)
 			});
@@ -425,7 +498,9 @@ class Bindings {
 							type: getType(arg.type),
 							opt: arg.default_value != null,
 							meta: makeMetadata(
+								#if eval
 								macro default_value($v{arg.default_value})
+								#end
 							),
 							// value: Null<Expr>
 						}
@@ -433,10 +508,12 @@ class Bindings {
 					ret: getReturnType(method.return_type)
 				}),
 				meta: makeMetadata(
+					#if eval
 					macro is_vararg($v{method.is_vararg}),
 					macro is_const($v{method.is_const}),
 					macro is_static($v{method.is_static}),
 					macro hash($v{method.hash})
+					#end
 				),
 				doc: processDescription(method.description)
 			});
@@ -470,10 +547,12 @@ class Bindings {
 			kind: TDClass(null, null, false, false, false),
 			isExtern: true,
 			meta: makeMetadata(
+				#if eval
 				macro bindings_api_type("builtin_classes"),
 				macro indexing_return_type($v{cls.indexing_return_type}),
 				macro is_keyed($v{cls.is_keyed}),
 				macro has_destructor($v{cls.has_destructor})
+				#end
 			),
 			doc: processDescription(cls.description)
 		}
@@ -513,9 +592,11 @@ class Bindings {
 				access: fieldAccess,
 				kind: FVar(getType(property.type)),
 				meta: makeMetadata(
+					#if eval
 					macro index($v{property.index}),
 					macro getter($v{property.getter}),
 					macro setter($v{property.setter})
+					#end
 				),
 				doc: processDescription(property.description)
 			});
@@ -523,16 +604,24 @@ class Bindings {
 
 		for(method in cls.methods.denullify()) {
 			final metadata = makeMetadata(
+				#if eval
 				macro is_const($v{method.is_const}),
 				macro is_static($v{method.is_static}),
 				macro is_vararg($v{method.is_vararg}),
 				macro is_virtual($v{method.is_virtual}),
 				macro hash($v{method.hash}),
 				macro hash_compatibility($v{method.hash_compatibility}),
+				#end
 			);
 
 			if(method.return_value != null) {
-				metadata.unshift(makeMetadata(macro return_value_meta($v{method.return_value.meta}))[0]);
+				#if eval
+				metadata.unshift(
+					makeMetadata(
+						macro return_value_meta($v{method.return_value.meta})
+					)[0]
+				);
+				#end
 			}
 
 			var hasCppType = StringTools.endsWith(method.return_value?.type ?? "", "*");
@@ -559,8 +648,10 @@ class Bindings {
 							name: processIdentifier(godotArg.name),
 							type: getType(godotArg.type),
 							meta: makeMetadata(
+								#if eval
 								macro meta($v{godotArg.meta}),
 								macro default_value($v{godotArg.default_value}),
+								#end
 							)
 						}
 					}),
@@ -606,14 +697,14 @@ class Bindings {
 			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits))), null, false, false, false),
 			isExtern: true,
 			meta: makeMetadata(
+				#if eval
 				macro bindings_api_type("class"),
 				macro is_refcounted($v{cls.is_refcounted}),
 				macro is_instantiable($v{cls.is_instantiable}),
 				macro api_type($v{cls.api_type})
+				#end
 			),
 			doc: processDescription(cls.description)
 		}
 	}
 }
-
-#end
