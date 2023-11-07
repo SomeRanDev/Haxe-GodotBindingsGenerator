@@ -26,6 +26,12 @@ using godot.bindings.NullTools;
 
 class Bindings {
 	/**
+		Need to store this option statically since cannot access `bindings.Options` from
+		the `output` function.
+	**/
+	static var fileComment: Null<String> = null;
+
+	/**
 		Generates a list of `TypeDefinition`s generated from the `extension_api.json` file.
 	**/
 	public static function generate(extensionJsonPath: String, options: Null<Options> = null): Array<TypeDefinition> {
@@ -44,7 +50,13 @@ class Bindings {
 		final printer = new Printer();
 		for(definition in typeDefinitions) {
 			final p = Path.join([outputPath, definition.name + ".hx"]);
-			File.saveContent(p, printer.printTypeDefinition(definition));
+			final content = printer.printTypeDefinition(definition);
+			final prefixContent = if(fileComment != null) {
+				'/**\n${fileComment.split("\n").map(s -> "\t" + s).join("\n")}\n**/\n';
+			} else {
+				"";
+			}
+			File.saveContent(p, prefixContent + content);
 		}
 	}
 
@@ -79,6 +91,8 @@ class Bindings {
 	function new(extensionJsonPath: String, options: Options) {
 		this.extensionJsonPath = extensionJsonPath;
 		this.options = options;
+
+		Bindings.fileComment = options?.fileComment; // Use this later in `output` static function.
 	}
 
 	/**
