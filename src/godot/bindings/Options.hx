@@ -8,6 +8,11 @@ class Options {
 	/**
 		The package all the binding modules will generated for.
 	**/
+	public var cpp(default, null): Bool = false;
+
+	/**
+		The package all the binding modules will generated for.
+	**/
 	public var basePackage(default, null): String = "godot";
 
 	/**

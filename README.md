@@ -33,3 +33,19 @@ Or you can install the library and create your own generator.
 | 1 | Add the lib to your `.hxml` file or compile command. | <pre lang="hxml">-lib godot-api-generator</pre> |
 | 2 | Get the `TypeDefinition`s and modify to your liking. | <pre lang="haxe">final haxeTypes: Array&lt;TypeDefinition&gt; = godot.Bindings.generate("path-to-json");</pre> |
 | 3 | Output the bindings to a folder. | <pre lang="haxe">godot.Bindings.output("output-folder", haxeTypes);</pre> |
+
+&nbsp;
+
+## Godot-CPP Data
+
+If you wish to include additional [`godot-cpp`](https://github.com/godotengine/godot-cpp) binding information such as `@:include`s and `@:native`s, add the `--cpp` flag or `cpp` option.
+
+#### Command Line
+```
+haxelib run godot-api-generator [path-to-json] [output-dir] --cpp
+```
+
+#### Haxe
+```haxe
+godot.Bindings.generate("path-to-json", { cpp: true });
+```

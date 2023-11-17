@@ -259,15 +259,24 @@ class Bindings {
 	}
 
 	/**
+		Generates a single `MetadataEntry` from an `Expr`.
+	**/
+	function makeMetadataEntry(e: Expr): MetadataEntry {
+		return makeMetadata(e)[0];
+	}
+
+	/**
 		Generates the `TypeDefinition`s.
 	**/
 	function make(): Array<TypeDefinition> {
 		final data = loadData(extensionJsonPath);
 		final result: Array<TypeDefinition> = [];
 
-		result.push(makeClassTypeDefinition("Godot", []
-			.concat(data.utility_functions.map(generateUtilityFunction))
-			.concat(data.global_constants.map(generateGlobalConstant))
+		result.push(makeClassTypeDefinition("Godot", (
+				data.utility_functions.map(generateUtilityFunction).concat(
+					data.global_constants.map(generateGlobalConstant)
+				)
+			)
 		));
 
 		for(e in data.global_enums) {
@@ -361,6 +370,23 @@ class Bindings {
 		Generates the `TypeDefinition` from a "utility_functions" object from `extension_api.json`.
 	**/
 	function generateUtilityFunction(utilityFunction: UtilityFunction): Field {
+		final meta = makeMetadata(
+			#if eval
+			macro generated_godot_api,
+			macro bindings_api_type("utility_function"),
+			macro godot_name($v{utilityFunction.name}),
+			macro category($v{utilityFunction.category}),
+			macro is_vararg($v{utilityFunction.is_vararg}),
+			macro hash($v{utilityFunction.hash})
+			#end
+		);
+
+		if(options.cpp) {
+			#if eval
+			meta.push(makeMetadataEntry(macro include("godot_cpp/variant/utility_functions.hpp")));
+			#end
+		}
+
 		return {
 			name: processIdentifier(utilityFunction.name),
 			pos: makeEmptyPosition(),
@@ -372,16 +398,7 @@ class Bindings {
 					type: getType(t.type)
 				} : FunctionArg))
 			}),
-			meta: makeMetadata(
-				#if eval
-				macro generated_godot_api,
-				macro bindings_api_type("utility_function"),
-				macro native($v{utilityFunction.name}),
-				macro category($v{utilityFunction.category}),
-				macro is_vararg($v{utilityFunction.is_vararg}),
-				macro hash($v{utilityFunction.hash})
-				#end
-			),
+			meta: meta,
 			doc: processDescription(utilityFunction.description)
 		}
 	}
@@ -410,6 +427,23 @@ class Bindings {
 		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.
 	**/
 	function generateGlobalEnum(globalEnum: GlobalEnum): TypeDefinition {
+		final meta = makeMetadata(
+			#if eval
+				#if (haxe < version("4.3.2"))
+				macro ":enum"(),
+				#end
+				macro generated_godot_api,
+				macro bindings_api_type("global_enum"),
+				macro is_bitfield($v{globalEnum.is_bitfield})
+			#end
+		);
+
+		if(options.cpp) {
+			#if eval
+			meta.push(makeMetadataEntry(macro include("godot_cpp/classes/global_constants_binds.hpp")));
+			#end
+		}
+
 		return {
 			name: processTypeName(globalEnum.name),
 			pack: getPack(),
@@ -423,16 +457,7 @@ class Bindings {
 					doc: processDescription(godotEnumValue.description)
 				}
 			}),
-			meta: makeMetadata(
-				#if eval
-					#if (haxe < version("4.3.2"))
-					macro ":enum"(),
-					#end
-					macro generated_godot_api,
-					macro bindings_api_type("global_enum"),
-					macro is_bitfield($v{globalEnum.is_bitfield})
-				#end
-			),
+			meta: meta,
 			kind: TDAbstract(macro : Int, 
 				#if (haxe >= version("4.3.2"))
 				[AbstractFlag.AbEnum]
@@ -559,6 +584,23 @@ class Bindings {
 			}>,
 		**/
 
+		final meta = makeMetadata(
+			#if eval
+			macro generated_godot_api,
+			macro bindings_api_type("builtin_classes"),
+			macro indexing_return_type($v{cls.indexing_return_type}),
+			macro is_keyed($v{cls.is_keyed}),
+			macro has_destructor($v{cls.has_destructor})
+			#end
+		);
+
+		if(options.cpp) {
+			#if eval
+			final p = "godot_cpp/classes/" + cls.name + ".hpp";
+			meta.push(makeMetadataEntry(macro include($v{p})));
+			#end
+		}
+
 		return {
 			name: processTypeName(cls.name),
 			pack: getPack(),
@@ -566,15 +608,7 @@ class Bindings {
 			fields: fields,
 			kind: TDClass(null, null, false, false, false),
 			isExtern: true,
-			meta: makeMetadata(
-				#if eval
-				macro generated_godot_api,
-				macro bindings_api_type("builtin_classes"),
-				macro indexing_return_type($v{cls.indexing_return_type}),
-				macro is_keyed($v{cls.is_keyed}),
-				macro has_destructor($v{cls.has_destructor})
-				#end
-			),
+			meta: meta,
 			doc: processDescription(cls.description)
 		}
 	}
@@ -710,6 +744,23 @@ class Bindings {
 			}>,
 		**/
 
+		final meta = makeMetadata(
+			#if eval
+			macro generated_godot_api,
+			macro bindings_api_type("class"),
+			macro is_refcounted($v{cls.is_refcounted}),
+			macro is_instantiable($v{cls.is_instantiable}),
+			macro api_type($v{cls.api_type})
+			#end
+		);
+
+		if(options.cpp) {
+			#if eval
+			final p = "godot_cpp/classes/" + cls.name + ".hpp";
+			meta.push(makeMetadataEntry(macro include($v{p})));
+			#end
+		}
+
 		return {
 			name: processTypeName(cls.name),
 			pack: getPack(),
@@ -717,15 +768,7 @@ class Bindings {
 			fields: fields,
 			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits))), null, false, false, false),
 			isExtern: true,
-			meta: makeMetadata(
-				#if eval
-				macro generated_godot_api,
-				macro bindings_api_type("class"),
-				macro is_refcounted($v{cls.is_refcounted}),
-				macro is_instantiable($v{cls.is_instantiable}),
-				macro api_type($v{cls.api_type})
-				#end
-			),
+			meta: meta,
 			doc: processDescription(cls.description)
 		}
 	}

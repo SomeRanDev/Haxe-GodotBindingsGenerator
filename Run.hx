@@ -5,6 +5,13 @@ function main() {
 	var outputDir = "godot_bindings";
 
 	final args = Sys.args();
+
+	// Check for --cpp
+	final isCpp = if(args.contains("--cpp")) {
+		args.remove("--cpp");
+		true;
+	} else false;
+
 	final cwd = switch(args) {
 		case ["help", _]: {
 			help();
@@ -32,7 +39,9 @@ function main() {
 	Sys.setCwd(cwd);
 
 	try {
-		final typeDefinitions = godot.Bindings.generate(jsonPath);
+		final typeDefinitions = godot.Bindings.generate(jsonPath, {
+			cpp: isCpp
+		});
 		godot.Bindings.output(outputDir, typeDefinitions);
 	} catch(e) {
 		Sys.println('ERROR:\n${e.message}');
