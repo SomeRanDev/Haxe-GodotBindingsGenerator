@@ -398,6 +398,7 @@ class Bindings {
 		if(options.cpp) {
 			#if eval
 			meta.push(makeMetadataEntry(macro include("godot_cpp/variant/utility_functions.hpp")));
+			meta.push(makeMetadataEntry(macro native($v{"godot::UtilityFunctions::" + utilityFunction.name})));
 			#end
 		}
 
