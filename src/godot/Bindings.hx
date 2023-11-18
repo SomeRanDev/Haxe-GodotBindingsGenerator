@@ -801,12 +801,12 @@ class Bindings {
 			}
 
 			function addField(
-				prependName: String = "",
+				extraMetadata: Null<Array<MetadataEntry>> = null,
 				additionalAccess: Null<Array<Access>> = null,
 				expr: Null<Expr> = null
 			) {
 				fields.push({
-					name: prependName + name,
+					name: name,
 					pos: makeEmptyPosition(),
 					access: additionalAccess == null ? fieldAccess : (fieldAccess.concat(additionalAccess)),
 					kind: FFun({
@@ -826,13 +826,21 @@ class Bindings {
 						ret: getReturnType(method.return_value?.type),
 						expr: expr
 					}),
-					meta: metadata,
+					meta: extraMetadata == null ? metadata : metadata.concat(extraMetadata),
 					doc: processDescription(method.description)
 				});
 			}
 
 			if(isSingleton) {
-				addField("#if godot_direct_singletons #else ", [AStatic]);
+				addField(
+					makeMetadata(
+						#if eval
+						macro godot_bindings_gen_prepend("#if godot_direct_singletons"),
+						macro godot_bindings_gen_append("\n#else")
+						#end
+					),
+					[AStatic]
+				);
 
 				var i = 0;
 				final margs = method.arguments.denullify();
@@ -841,7 +849,11 @@ class Bindings {
 				final totalArgs = #if eval [macro $v{call}].concat(margs.map(a -> macro $i{a.name})) #else [] #end;
 				
 				addField(
-					"#none #end ",
+					makeMetadata(
+						#if eval
+						macro godot_bindings_gen_append("#end")
+						#end
+					),
 					[AStatic, AExtern, AInline],
 					#if eval macro {
 						untyped __include__($v{"godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp"});
