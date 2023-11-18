@@ -403,22 +403,28 @@ class Printer {
 							for (f in t.fields) {
 
 								// MODIFIED
+								final newMeta = [];
 								final prepends = [];
 								final appends = [];
 								for(m in f.meta) {
-									if(m.params?.length != 1) continue;
-									switch(m.params[0].expr) {
-										case EConst(CString(s, _)): {
-											if(m.name == ":godot_bindings_gen_prepend") {
-												prepends.push(s);
-											} else if(m.name == ":godot_bindings_gen_append") {
-												appends.push(s);
+									if(m.params?.length == 1) {
+										switch(m.params[0].expr) {
+											case EConst(CString(s, _)): {
+												if(m.name == ":godot_bindings_gen_prepend") {
+													prepends.push(s);
+													continue;
+												} else if(m.name == ":godot_bindings_gen_append") {
+													appends.push(s);
+													continue;
+												}
 											}
+											case _:
 										}
-										case _:
 									}
+									newMeta.push(m);
 								}
 
+								f.meta = newMeta;
 								final result = tabs + printFieldWithDelimiter(f);
 
 								if(prepends.length > 0 || appends.length > 0) {
