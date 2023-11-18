@@ -263,9 +263,8 @@ class Bindings {
 			return null;
 		}
 
-		switch(data.default_value) {
-			case "null": return macro null;
-			case _:
+		if(data.default_value == "null") {
+			return macro null;
 		}
 
 		final v: Dynamic = switch(data.type) {
