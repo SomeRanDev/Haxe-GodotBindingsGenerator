@@ -255,6 +255,31 @@ class Bindings {
 	}
 
 	/**
+		Given a Godot argument JSON object (with "default_value" and "type" Strings),
+		returns the default value expression for Haxe or null.
+	**/
+	function getValue(data: { default_value: Null<String>, type: String }): Null<Expr> {
+		if(data.default_value == null) {
+			return null;
+		}
+
+		switch(data.default_value) {
+			case "null": return macro null;
+			case _:
+		}
+
+		final v: Dynamic = switch(data.type) {
+			case "bool": data.default_value == "true";
+			case "int": Std.parseInt(data.default_value);
+			case "float": Std.parseFloat(data.default_value);
+			case "String": ~/$"(.*)"^/.replace(data.default_value, "$1");
+			case _: return null;
+		}
+
+		return #if eval macro $v{v} #else null #end;
+	}
+
+	/**
 		Extracts the `TypePath` from a `TPath` `ComplexType`.
 		Throws an error if the `ComplexType` is not a `TPath`.
 	**/
@@ -773,7 +798,8 @@ class Bindings {
 								macro meta($v{godotArg.meta}),
 								macro default_value($v{godotArg.default_value}),
 								#end
-							)
+							),
+							value: getValue(godotArg)
 						}
 					}),
 					ret: getReturnType(method.return_value?.type)
