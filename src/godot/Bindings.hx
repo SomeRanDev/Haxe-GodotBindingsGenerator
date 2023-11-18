@@ -846,7 +846,7 @@ class Bindings {
 				final margs = method.arguments.denullify();
 				final args = margs.map(a -> "{" + (i++) + "}").join(", ");
 				final call = 'godot::${cls.name}::get_singleton()->${method.name}($args)';
-				final totalArgs = #if eval [macro $v{call}].concat(margs.map(a -> macro $i{a.name})) #else [] #end;
+				final totalArgs = #if eval [macro $v{call}].concat(margs.map(a -> macro $i{processIdentifier(a.name)})) #else [] #end;
 				
 				addField(
 					makeMetadata(
