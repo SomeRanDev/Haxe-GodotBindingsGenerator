@@ -16,7 +16,7 @@ import haxe.macro.Expr;
 #if (haxe >= version("4.3.2"))
 import haxe.macro.Expr.AbstractFlag;
 #end
-import haxe.macro.Printer;
+import godot.haxestd.Printer;
 
 import sys.FileSystem;
 import sys.io.File;
@@ -97,12 +97,18 @@ class Bindings {
 	var typeType: Map<String, TypeType>;
 
 	/**
+		Names of the loaded Godot singletons.
+	**/
+	var singletons: Map<String, Bool>;
+
+	/**
 		Constructor. Sets up all the fields.
 	**/
 	function new(extensionJsonPath: String, options: Options) {
 		this.extensionJsonPath = extensionJsonPath;
 		this.options = options;
 		this.typeType = [];
+		this.singletons = [];
 
 		Bindings.fileComment = options?.fileComment; // Use this later in `output` static function.
 	}
@@ -238,7 +244,7 @@ class Bindings {
 			case "float": macro : Float;
 			case "String": macro : String;
 			case "Array": macro : godot.GodotArray;
-			case "Variant": macro : Dynamic;
+			case "Variant": options.godotVariantType;
 			case _: TPath({
 				pack: getPack(),
 				name: typeString
@@ -368,13 +374,22 @@ class Bindings {
 		}
 
 		// Figure out which classes should be Ref<T> or T*
-		typeType.set("Object", CppPointer);
-		for(cls in data.classes) {
-			if(StringTools.endsWith(cls.name, "*")) {
-				typeType.set(cls.name, None);
-				continue;
+		if(options.cpp) {
+			typeType.set("Object", CppPointer);
+			for(cls in data.classes) {
+				if(StringTools.endsWith(cls.name, "*")) {
+					typeType.set(cls.name, None);
+					continue;
+				}
+				typeType.set(cls.name, cls.is_refcounted ? GodotRef : CppPointer);
 			}
-			typeType.set(cls.name, cls.is_refcounted ? GodotRef : CppPointer);
+		}
+
+		// Figure out which classes are Singletons
+		if(data.singletons != null) {
+			for(singleton in data.singletons.denullify()) {
+				singletons.set(singleton.name, true);
+			}
 		}
 
 		// Generate bindings for "classes"
@@ -710,6 +725,8 @@ class Bindings {
 		final fields = [];
 		final fieldAccess = [APublic];
 
+		final isSingleton = singletons.exists(cls.name);
+
 		for(constant in cls.constants.denullify()) {
 			fields.push({
 				name: processIdentifier(constant.name),
@@ -783,29 +800,59 @@ class Bindings {
 				name = renamedMethods.get(name).trustMe();
 			}
 
-			fields.push({
-				name: name,
-				pos: makeEmptyPosition(),
-				access: fieldAccess,
-				kind: FFun({
-					args: method.arguments.maybeMap(function(godotArg): FunctionArg {
-						return {
-							name: processIdentifier(godotArg.name),
-							type: getType(godotArg.type),
-							meta: makeMetadata(
-								#if eval
-								macro meta($v{godotArg.meta}),
-								macro default_value($v{godotArg.default_value}),
-								#end
-							),
-							value: getValue(godotArg)
-						}
+			function addField(
+				prependName: String = "",
+				additionalAccess: Null<Array<Access>> = null,
+				expr: Null<Expr> = null
+			) {
+				fields.push({
+					name: prependName + name,
+					pos: makeEmptyPosition(),
+					access: additionalAccess == null ? fieldAccess : (fieldAccess.concat(additionalAccess)),
+					kind: FFun({
+						args: method.arguments.maybeMap(function(godotArg): FunctionArg {
+							return {
+								name: processIdentifier(godotArg.name),
+								type: getType(godotArg.type),
+								meta: makeMetadata(
+									#if eval
+									macro meta($v{godotArg.meta}),
+									macro default_value($v{godotArg.default_value}),
+									#end
+								),
+								value: getValue(godotArg)
+							}
+						}),
+						ret: getReturnType(method.return_value?.type),
+						expr: expr
 					}),
-					ret: getReturnType(method.return_value?.type)
-				}),
-				meta: metadata,
-				doc: processDescription(method.description)
-			});
+					meta: metadata,
+					doc: processDescription(method.description)
+				});
+			}
+
+			if(isSingleton) {
+				addField("#if godot_direct_singletons #else ", [AStatic]);
+
+				var i = 0;
+				final margs = method.arguments.denullify();
+				final args = margs.map(a -> "{" + (i++) + "}").join(", ");
+				final call = 'godot::${cls.name}::get_singleton()->${method.name}($args)';
+				final totalArgs = #if eval [macro $v{call}].concat(margs.map(a -> macro $i{a.name})) #else [] #end;
+				
+				addField(
+					"#none #end ",
+					[AStatic, AExtern, AInline],
+					#if eval macro {
+						untyped __include__($v{"godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp"});
+						return untyped __cpp__($a{totalArgs});
+					} #else null #end
+				);
+			} else {
+				addField();
+			}
+
+			
 		}
 
 		/**TODO

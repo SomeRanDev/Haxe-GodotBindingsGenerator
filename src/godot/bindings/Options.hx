@@ -6,26 +6,9 @@ package godot.bindings;
 @:structInit
 class Options {
 	/**
-		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
-		parameters/returns with representation for pointers and Godot's `Ref`. 
+		The type used for Godot's variant type.
 	**/
-	public var cpp(default, null): Bool = false;
-
-	/**
-		The type used to represent Godot's `Ref` in `--cpp` mode.
-	**/
-	public var refType(default, null): { name: String, pack: Array<String> } = {
-		name: "GodotRef",
-		pack: []
-	}
-
-	/**
-		The type used to represent C++ pointers in `--cpp` mode.
-	**/
-	public var ptrType(default, null): { name: String, pack: Array<String> } = {
-		name: "GodotPtr",
-		pack: []
-	}
+	public var godotVariantType(default, null): haxe.macro.Expr.ComplexType = macro : Dynamic;
 
 	/**
 		The package all the binding modules will generated for.
@@ -48,4 +31,26 @@ class Options {
 	**/
 	public var fileComment(default, null): Null<String> = "Generated using Godot Bindings Generator for Haxe.
 https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
+
+	/**
+		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
+		parameters/returns with representation for pointers and Godot's `Ref`. 
+	**/
+	public var cpp(default, null): Bool = false;
+
+	/**
+		The type used to represent Godot's `Ref` in `--cpp` mode.
+	**/
+	public var refType(default, null): { name: String, pack: Array<String> } = {
+		name: "GodotRef",
+		pack: []
+	}
+
+	/**
+		The type used to represent C++ pointers in `--cpp` mode.
+	**/
+	public var ptrType(default, null): { name: String, pack: Array<String> } = {
+		name: "GodotPtr",
+		pack: []
+	}
 }
