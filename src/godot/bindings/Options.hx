@@ -6,9 +6,26 @@ package godot.bindings;
 @:structInit
 class Options {
 	/**
-		The package all the binding modules will generated for.
+		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
+		parameters/returns with representation for pointers and Godot's `Ref`. 
 	**/
 	public var cpp(default, null): Bool = false;
+
+	/**
+		The type used to represent Godot's `Ref` in `--cpp` mode.
+	**/
+	public var refType(default, null): { name: String, pack: Array<String> } = {
+		name: "GodotRef",
+		pack: []
+	}
+
+	/**
+		The type used to represent C++ pointers in `--cpp` mode.
+	**/
+	public var ptrType(default, null): { name: String, pack: Array<String> } = {
+		name: "GodotPtr",
+		pack: []
+	}
 
 	/**
 		The package all the binding modules will generated for.

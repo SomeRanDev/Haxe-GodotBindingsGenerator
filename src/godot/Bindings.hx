@@ -24,6 +24,12 @@ import sys.io.File;
 using godot.bindings.NullableArrayTools;
 using godot.bindings.NullTools;
 
+enum TypeType {
+	None;
+	GodotRef;
+	CppPointer;
+}
+
 class Bindings {
 	/**
 		Need to store this option statically since cannot access `bindings.Options` from
@@ -86,11 +92,17 @@ class Bindings {
 	var options: Options;
 
 	/**
+		Stores the kind of "Type" a class should be when used as param or return.
+	**/
+	var typeType: Map<String, TypeType>;
+
+	/**
 		Constructor. Sets up all the fields.
 	**/
 	function new(extensionJsonPath: String, options: Options) {
 		this.extensionJsonPath = extensionJsonPath;
 		this.options = options;
+		this.typeType = [];
 
 		Bindings.fileComment = options?.fileComment; // Use this later in `output` static function.
 	}
@@ -180,7 +192,7 @@ class Bindings {
 	/**
 		Converts a `String` of a Godot type to the Haxe `ComplexType` equivalent.
 	**/
-	function getType(typeString: String): ComplexType {
+	function getType(typeString: String, noCppWrap: Bool = false): ComplexType {
 		final typearrPrefix = "typedarray::";
 		if(StringTools.startsWith(typeString, typearrPrefix)) {
 			return TPath({
@@ -190,6 +202,30 @@ class Bindings {
 					TPType(getType(typeString.substring(typearrPrefix.length)))
 				]
 			});
+		}
+
+		if(options.cpp && !noCppWrap && typeType.exists(typeString)) {
+			switch(typeType.get(typeString)) {
+				case GodotRef: {
+					return TPath({
+						pack: options.refType.pack,
+						name: options.refType.name,
+						params: [
+							TPType(TPath({ pack: getPack(), name: typeString }))
+						]
+					});
+				}
+				case CppPointer: {
+					return TPath({
+						pack: options.ptrType.pack,
+						name: options.ptrType.name,
+						params: [
+							TPType(TPath({ pack: getPack(), name: typeString }))
+						]
+					});
+				}
+				case _:
+			}
 		}
 
 		if(StringTools.startsWith(typeString, "enum::") || StringTools.startsWith(typeString, "bitfield::")) {
@@ -286,6 +322,7 @@ class Bindings {
 		final data = loadData(extensionJsonPath);
 		final result: Array<TypeDefinition> = [];
 
+		// Generate bindings for "utility_functions" and "global_constants"
 		result.push(makeClassTypeDefinition("Godot", (
 				data.utility_functions.map(generateUtilityFunction).concat(
 					data.global_constants.map(generateGlobalConstant)
@@ -293,10 +330,12 @@ class Bindings {
 			)
 		));
 
+		// Generate bindings for "global_enums"
 		for(e in data.global_enums) {
 			result.push(generateGlobalEnum(e));
 		}
 
+		// Generate bindings for "builtin_classes"
 		for(builtin in data.builtin_classes) {
 			if(builtin.name == "bool" || builtin.name == "int" || builtin.name == "float") {
 				continue;
@@ -304,6 +343,17 @@ class Bindings {
 			result.push(generateBuiltinClass(builtin));
 		}
 
+		// Figure out which classes should be Ref<T> or T*
+		typeType.set("Object", CppPointer);
+		for(cls in data.classes) {
+			if(StringTools.endsWith(cls.name, "*")) {
+				typeType.set(cls.name, None);
+				continue;
+			}
+			typeType.set(cls.name, cls.is_refcounted ? GodotRef : CppPointer);
+		}
+
+		// Generate bindings for "classes"
 		final hierarchyData = options.generateHierarchyMeta.length > 0 ? generateHierarchyData(data.classes) : null;
 		for(cls in data.classes) {
 			final typeDefinition = generateClass(cls);
@@ -611,8 +661,9 @@ class Bindings {
 
 		if(options.cpp) {
 			#if eval
-			final p = "godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp";
+			final p = "godot_cpp/variant/" + camelToSnake(cls.name) + ".hpp";
 			meta.push(makeMetadataEntry(macro include($v{p})));
+			meta.push(makeMetadataEntry(macro valueType));
 			#end
 		}
 
@@ -773,6 +824,7 @@ class Bindings {
 			#if eval
 			final p = "godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp";
 			meta.push(makeMetadataEntry(macro include($v{p})));
+			meta.push(makeMetadataEntry(macro valueType));
 			#end
 		}
 
@@ -781,7 +833,7 @@ class Bindings {
 			pack: getPack(),
 			pos: makeEmptyPosition(),
 			fields: fields,
-			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits))), null, false, false, false),
+			kind: TDClass((cls.inherits == null ? null : getTypePathFromComplex(getType(cls.inherits, true))), null, false, false, false),
 			isExtern: true,
 			meta: meta,
 			doc: processDescription(cls.description)
