@@ -169,7 +169,7 @@ class Printer {
 		var name = meta.name;
 		var condition = null;
 
-		final re = ~/^#if ([a-zA-Z0-9_]+) (.*)$/;
+		final re = ~/^:?#if ([a-zA-Z0-9_]+) (.*)$/;
 		if(re.match(name)) {
 			name = re.matched(2);
 			condition = re.matched(1);

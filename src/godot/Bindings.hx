@@ -480,14 +480,15 @@ class Bindings {
 			macro godot_name($v{utilityFunction.name}),
 			macro category($v{utilityFunction.category}),
 			macro is_vararg($v{utilityFunction.is_vararg}),
-			macro hash($v{utilityFunction.hash})
+			macro hash($v{utilityFunction.hash}),
+			macro "#if gdscript :native"($v{processIdentifier(utilityFunction.name)})
 			#end
 		);
 
 		if(options.cpp) {
 			#if eval
-			meta.push(makeMetadataEntry(macro include("godot_cpp/variant/utility_functions.hpp")));
-			meta.push(makeMetadataEntry(macro native($v{"godot::UtilityFunctions::" + utilityFunction.name})));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}("godot_cpp/variant/utility_functions.hpp")));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :native'}($v{"godot::UtilityFunctions::" + utilityFunction.name})));
 			#end
 		}
 
@@ -544,7 +545,7 @@ class Bindings {
 
 		if(options.cpp) {
 			#if eval
-			meta.push(makeMetadataEntry(macro include("godot_cpp/classes/global_constants_binds.hpp")));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}("godot_cpp/classes/global_constants_binds.hpp")));
 			#end
 		}
 
@@ -701,8 +702,8 @@ class Bindings {
 		if(options.cpp) {
 			#if eval
 			final p = "godot_cpp/variant/" + camelToSnake(cls.name) + ".hpp";
-			meta.push(makeMetadataEntry(macro include($v{p})));
-			meta.push(makeMetadataEntry(macro valueType));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}($v{p})));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :valueType'}));
 			#end
 		}
 
@@ -748,10 +749,27 @@ class Bindings {
 				continue;
 			}
 
+			final data = if(isSingleton) {
+				{
+					access: fieldAccess.concat([AStatic]),
+					meta: makeMetadata(
+						#if eval
+						macro godot_bindings_gen_prepend("#if godot_direct_singletons"),
+						macro godot_bindings_gen_append("#end")
+						#end
+					)
+				}
+			} else {
+				{
+					access: fieldAccess,
+					meta: []
+				}
+			}
+
 			fields.push({
 				name: processIdentifier(property.name),
 				pos: makeEmptyPosition(),
-				access: fieldAccess,
+				access: data.access,
 				kind: FVar(getType(property.type)),
 				meta: makeMetadata(
 					#if eval
@@ -759,7 +777,7 @@ class Bindings {
 					macro getter($v{property.getter}),
 					macro setter($v{property.setter})
 					#end
-				),
+				).concat(data.meta),
 				doc: processDescription(property.description)
 			});
 		}
@@ -907,8 +925,8 @@ class Bindings {
 		if(options.cpp) {
 			#if eval
 			final p = "godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp";
-			meta.push(makeMetadataEntry(macro include($v{p})));
-			meta.push(makeMetadataEntry(macro valueType));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}($v{p})));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :valueType'}));
 			#end
 		}
 

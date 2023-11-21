@@ -39,6 +39,11 @@ https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 	public var cpp(default, null): Bool = false;
 
 	/**
+		This is the condition that wraps cpp related metadata.
+	**/
+	public var cppDefine(default, null): String = "cxx";
+
+	/**
 		The type used to represent Godot's `Ref` in `--cpp` mode.
 	**/
 	public var refType(default, null): { name: String, pack: Array<String> } = {
