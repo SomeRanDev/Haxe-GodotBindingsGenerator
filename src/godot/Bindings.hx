@@ -32,6 +32,11 @@ enum TypeType {
 
 class Bindings {
 	/**
+		The conditional compilation condition string for the singleton "C++" calls.
+	**/
+	static final cxxInlineSingletonsCondition = "godot_cxx_inline_singletons";
+
+	/**
 		Need to store this option statically since cannot access `bindings.Options` from
 		the `output` function.
 	**/
@@ -752,9 +757,9 @@ class Bindings {
 			final data = if(isSingleton) {
 				{
 					access: fieldAccess.concat([AStatic]),
-					meta: makeMetadata(
+					meta: !options.cpp ? [] : makeMetadata(
 						#if eval
-						macro godot_bindings_gen_prepend("#if godot_direct_singletons"),
+						macro godot_bindings_gen_prepend($v{'#if !${cxxInlineSingletonsCondition}'}),
 						macro godot_bindings_gen_append("#end")
 						#end
 					)
@@ -850,33 +855,46 @@ class Bindings {
 			}
 
 			if(isSingleton) {
-				addField(
-					makeMetadata(
-						#if eval
-						macro godot_bindings_gen_prepend("#if godot_direct_singletons"),
-						macro godot_bindings_gen_append("\n#else")
-						#end
-					),
-					[AStatic]
-				);
+				// -----------------------
+				// C++ extern inline
 
-				var i = 0;
-				final margs = method.arguments.denullify();
-				final args = margs.map(a -> "{" + (i++) + "}").join(", ");
-				final call = 'godot::${cls.name}::get_singleton()->${method.name}($args)';
-				final totalArgs = #if eval [macro $v{call}].concat(margs.map(a -> macro $i{processIdentifier(a.name)})) #else [] #end;
-				
+				if(options.cpp) {
+					var i = 0;
+					final margs = method.arguments.denullify();
+					final args = margs.map(a -> "{" + (i++) + "}").join(", ");
+					final call = 'godot::${cls.name}::get_singleton()->${method.name}($args)';
+					final totalArgs = {
+						#if eval
+						[macro $v{call}].concat(margs.map(a -> macro $i{processIdentifier(a.name)}))
+						#else
+						[]
+						#end;
+					}
+					
+					addField(
+						makeMetadata(
+							#if eval
+							macro godot_bindings_gen_prepend($v{'#if $cxxInlineSingletonsCondition'}),
+							macro godot_bindings_gen_append("\n#else")
+							#end
+						),
+						[AStatic, AExtern, AInline],
+						#if eval macro {
+							untyped __include__($v{"godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp"});
+							return untyped __cpp__($a{totalArgs});
+						} #else null #end
+					);
+				}
+
+				// -----------------------
+				// Normal static call
 				addField(
-					makeMetadata(
+					!options.cpp ? [] : makeMetadata(
 						#if eval
 						macro godot_bindings_gen_append("#end")
 						#end
 					),
-					[AStatic, AExtern, AInline],
-					#if eval macro {
-						untyped __include__($v{"godot_cpp/classes/" + camelToSnake(cls.name) + ".hpp"});
-						return untyped __cpp__($a{totalArgs});
-					} #else null #end
+					[AStatic]
 				);
 			} else {
 				addField();
