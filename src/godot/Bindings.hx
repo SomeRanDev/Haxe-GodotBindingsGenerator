@@ -700,7 +700,8 @@ class Bindings {
 			macro bindings_api_type("builtin_classes"),
 			macro indexing_return_type($v{cls.indexing_return_type}),
 			macro is_keyed($v{cls.is_keyed}),
-			macro has_destructor($v{cls.has_destructor})
+			macro has_destructor($v{cls.has_destructor}),
+			macro avoid_temporaries // TODO: should this be optional?
 			#end
 		);
 
