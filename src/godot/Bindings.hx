@@ -748,11 +748,99 @@ class Bindings {
 			});
 		}
 
-		final renamedMethods: Map<String, String> = [];
+		// Validate property types and their getter/setter types
+		final getterExpectedType: Map<String, { name: String, type: String }> = [];
+		final setterExpectedType: Map<String, { name: String, type: String }> = [];
+		final getterSetterFound: Map<String, { sourceProperty: String, exists: Bool }> = [];
+		for(property in cls.properties.denullify()) {
+			if(property.getter != null) {
+				getterExpectedType.set(property.getter, property);
+				getterSetterFound.set(property.getter, { sourceProperty: property.name, exists: false });
+			}
+			if(property.setter != null) {
+				setterExpectedType.set(property.setter, property);
+				getterSetterFound.set(property.setter, { sourceProperty: property.name, exists: false });
+			}
+		}
+
+		// Let's ignore properties who don't have matching types with their getters/setters for the time being.
+		// They can still be used by calling the getter/setter function directly.
+		final ignoreProperties: Map<String, Bool> = [];
+		function prop(p: String) {
+			return if(StringTools.startsWith(p, "enum::")) "int";
+			else if(StringTools.startsWith(p, "bitfield::")) "int";
+			// Uncomment once a solution to treat Strings and StringNames the same is found...
+			// else if(p == "StringName") "String";
+			else p;
+		}
+		for(method in cls.methods.denullify()) {
+			if(getterSetterFound.exists(method.name)) {
+				getterSetterFound.get(method.name).exists = true;
+			}
+
+			if(getterExpectedType.exists(method.name)) {
+				final property = getterExpectedType.get(method.name).trustMe();
+				if(method.return_value == null || prop(method.return_value.type) != prop(property.type)) {
+					#if godot_api_bindings_debug
+					Sys.println('Property and getter types do not match.\n${cls.name} { func ${method.name}(...) -> ${method.return_value.type}, prop: ${property.name}: ${property.type} }');
+					#end
+					ignoreProperties.set(property.name, true);
+				}
+			} else if(setterExpectedType.exists(method.name)) {
+				final property = setterExpectedType.get(method.name).trustMe();
+				final args = method.arguments.denullify();
+				if(args.length == 0 || prop(args[args.length - 1].type) != prop(property.type)) {
+					#if godot_api_bindings_debug
+					Sys.println('Property and setter types do not match.\n${cls.name} { func ${method.name}(..., v: ${args[args.length - 1].type}), prop: ${property.name}: ${property.type} }');
+					#end
+					ignoreProperties.set(property.name, true);
+				}
+			}
+		}
+
+		// Check for non-existant methods.
+		// Let's ignore these properties too.
+		for(_ => data in getterSetterFound) {
+			if(!data.exists) {
+				ignoreProperties.set(data.sourceProperty, true);
+				#if godot_api_bindings_debug
+				Sys.println('${cls.name}.$name doesn\'t exist');
+				#end
+			}
+		}
+
+		final propertyRenames: Map<String, String> = [];
+		final setters: Map<String, String> = [];
 
 		for(property in cls.properties.denullify()) {
 			if(StringTools.contains(property.type, ",") || StringTools.contains(property.type, "/")) {
 				continue;
+			}
+
+			final ignoreProperty = ignoreProperties.exists(property.name);
+
+			final name = processIdentifier(property.name);
+
+			// This type of property shares its setter and getter with other properties.
+			// It distinguishes itself with its "index" that is passed to the first argument of the setter/getter.
+			final isSpecialIndexedProp = property.index != null;
+
+			// If it starts with an underscore, it is private and we cannot use it directly afaik??
+			// Example: `Control.anchor_XXX` properties and their setter: `Control._set_anchor`
+			final hasSetter = property.setter != null && !StringTools.startsWith(property.setter, "_");
+
+			if(!ignoreProperty && !isSpecialIndexedProp) {
+				// TODO: check for private getter??
+				if(property.getter != "get_" + name) {
+					propertyRenames.set(property.getter, "get_" + name);
+				}
+
+				if(hasSetter) {
+					if(property.setter != "set_" + name) {
+						propertyRenames.set(property.setter, "set_" + name);
+					}
+					setters.set(property.setter, property.type);
+				}
 			}
 
 			final data = if(isSingleton) {
@@ -772,8 +860,58 @@ class Bindings {
 				}
 			}
 
+			// Setup property if we're not ignoring it.
+			if(!ignoreProperty) {
+				// For the "special indexed" properties, let's generate their own set/get inline functions.
+				var propertyMeta = [];
+				if(isSpecialIndexedProp) {
+					final typeString = haxe.macro.ComplexTypeTools.toString(getType(property.type));
+
+					final getter = '\tpublic extern inline function get_$name(): $typeString {
+		return cast ${property.getter}(${property.index});
+	}';
+
+					final setter = !hasSetter ? "" : '\tpublic extern inline function set_$name(v: $typeString): $typeString {
+		${property.setter}(${property.index}, cast v);
+		return v;
+	}\n';
+
+					propertyMeta = makeMetadata(
+						#if eval
+						macro godot_bindings_gen_prepend($v{'$getter\n$setter'}),
+						#end
+					);
+				}
+
+				fields.push({
+					name: name,
+					pos: makeEmptyPosition(),
+					access: data.access,
+					kind: FProp("get", property.setter == null ? "never" : "set", getType(property.type)),
+					meta: makeMetadata(
+						#if eval
+						macro index($v{property.index}),
+						macro getter($v{property.getter}),
+						macro setter($v{property.setter}),
+						macro godot_bindings_gen_prepend($v{'#if use_properties'}),
+						macro godot_bindings_gen_append("#else")
+						#end
+					).concat(data.meta).concat(propertyMeta),
+					doc: processDescription(property.description)
+				});
+
+				// Let's add #end to normal field
+				data.meta.push(makeMetadataEntry(macro godot_bindings_gen_append("#end")));
+			} else {
+				// If ignoring property, let's still wrap the normal variable
+				#if eval
+				data.meta.push(makeMetadataEntry(macro godot_bindings_gen_prepend($v{'#if !use_properties'})));
+				data.meta.push(makeMetadataEntry(macro godot_bindings_gen_append("#end")));
+				#end
+			}
+
 			fields.push({
-				name: processIdentifier(property.name),
+				name: name,
 				pos: makeEmptyPosition(),
 				access: data.access,
 				kind: FVar(getType(property.type)),
@@ -820,17 +958,31 @@ class Bindings {
 			if(hasCppType) continue;
 
 			var name = processIdentifier(method.name);
-			if(renamedMethods.exists(name)) {
-				name = renamedMethods.get(name).trustMe();
+			final originalName = name;
+
+			final setterType = setters.get(name);
+
+			final nativeMeta = if(propertyRenames.exists(name)) {
+				final result = makeMetadata(#if eval macro "#if use_properties :native"($v{name}) #end);
+				name = propertyRenames.get(name).trustMe();
+				result;
+			} else {
+				[];
+			};
+
+			var preimplName = name;
+			if(setterType != null) {
+				name += "_impl";
 			}
 
 			function addField(
+				overrideName: Null<String> = null,
 				extraMetadata: Null<Array<MetadataEntry>> = null,
 				additionalAccess: Null<Array<Access>> = null,
 				expr: Null<Expr> = null
 			) {
 				fields.push({
-					name: name,
+					name: overrideName ?? name,
 					pos: makeEmptyPosition(),
 					access: additionalAccess == null ? fieldAccess : (fieldAccess.concat(additionalAccess)),
 					kind: FFun({
@@ -843,7 +995,7 @@ class Bindings {
 									macro meta($v{godotArg.meta}),
 									macro default_value($v{godotArg.default_value}),
 									#end
-								),
+								).concat(nativeMeta),
 								value: getValue(godotArg)
 							}
 						}),
@@ -863,7 +1015,7 @@ class Bindings {
 					var i = 0;
 					final margs = method.arguments.denullify();
 					final args = margs.map(a -> "{" + (i++) + "}").join(", ");
-					final call = 'godot::${cls.name}::get_singleton()->${method.name}($args)';
+					final call = 'godot::${cls.name}::get_singleton()->${originalName}($args)';
 					final totalArgs = {
 						#if eval
 						[macro $v{call}].concat(margs.map(a -> macro $i{processIdentifier(a.name)}))
@@ -873,6 +1025,7 @@ class Bindings {
 					}
 					
 					addField(
+						null,
 						makeMetadata(
 							#if eval
 							macro godot_bindings_gen_prepend($v{'#if $cxxInlineSingletonsCondition'}),
@@ -890,6 +1043,7 @@ class Bindings {
 				// -----------------------
 				// Normal static call
 				addField(
+					null,
 					!options.cpp ? [] : makeMetadata(
 						#if eval
 						macro godot_bindings_gen_append("#end")
@@ -898,7 +1052,39 @@ class Bindings {
 					[AStatic]
 				);
 			} else {
-				addField();
+
+				var baseFieldMetadata = [];
+
+				if(setterType != null) {
+					final t = haxe.macro.ComplexTypeTools.toString(getReturnType(setterType));
+					addField(
+						null,
+						makeMetadata(
+							#if eval
+							macro godot_bindings_gen_prepend($v{'#if use_properties
+	public extern inline function $preimplName(v: $t): $t {
+		${preimplName}_impl(cast v);
+		return v;
+	}
+'}),
+							macro godot_bindings_gen_append("\n#else"),
+							macro native($v{preimplName})
+							#end
+						),
+					);
+
+
+					baseFieldMetadata = makeMetadata(
+						#if eval
+						macro godot_bindings_gen_append("\n#end")
+						#end
+					);
+				}
+
+				addField(
+					preimplName,
+					baseFieldMetadata
+				);
 			}
 
 			
