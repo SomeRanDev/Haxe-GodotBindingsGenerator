@@ -779,8 +779,9 @@ class Bindings {
 			else p;
 		}
 		for(method in cls.methods.denullify()) {
-			if(getterSetterFound.exists(method.name)) {
-				getterSetterFound.get(method.name).exists = true;
+			final getterSetterData = getterSetterFound.get(method.name);
+			if(getterSetterData != null) {
+				getterSetterData.exists = true;
 			}
 
 			if(getterExpectedType.exists(method.name)) {
@@ -836,15 +837,16 @@ class Bindings {
 
 			if(!ignoreProperty && !isSpecialIndexedProp) {
 				// TODO: check for private getter??
-				if(property.getter != "get_" + name) {
+				if(property.getter != null && property.getter != "get_" + name) {
 					propertyRenames.set(property.getter, "get_" + name);
 				}
 
 				if(hasSetter) {
-					if(property.setter != "set_" + name) {
-						propertyRenames.set(property.setter, "set_" + name);
+					final setter = property.setter.trustMe();
+					if(setter != "set_" + name) {
+						propertyRenames.set(setter, "set_" + name);
 					}
-					setters.set(property.setter, property.type);
+					setters.set(setter, property.type);
 				}
 			}
 
