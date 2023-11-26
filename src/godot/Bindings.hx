@@ -37,6 +37,11 @@ class Bindings {
 	static final cxxInlineSingletonsCondition = "godot_cxx_inline_singletons";
 
 	/**
+		Makes the `get_node` call redirect `get_node_internal` if this define is enabled.
+	**/
+	static final cxxFixGetNode = "godot_cxx_fix_get_node";
+
+	/**
 		Need to store this option statically since cannot access `bindings.Options` from
 		the `output` function.
 	**/
@@ -1079,6 +1084,18 @@ class Bindings {
 						macro godot_bindings_gen_append("\n#end")
 						#end
 					);
+				}
+
+				// Special case to deal with Godot-CPP's `get_node<T>`.
+				// To get the behavior expected for GDScript's `get_node`, `get_node_internal` should be used.
+				if(options.cpp && cls.name == "Node" && originalName == "get_node") {
+					#if eval
+					baseFieldMetadata.push(makeMetadataEntry(macro $v{'#if $cxxFixGetNode :native'}("get_node_internal")));
+					#end
+				} else if(preimplName != originalName) {
+					#if eval
+					baseFieldMetadata.push(makeMetadataEntry(macro native($v{originalName})));
+					#end
 				}
 
 				addField(
