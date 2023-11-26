@@ -33,9 +33,16 @@ class Options {
 https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 
 	/**
-		The metadata used for `@:native` setups.
+		The metadata used to signify the "native" name of a class field.
+		It should replace the name, but not the entire call expression.
 	**/
-	public var nativeMeta(default, null): String = ":native";
+	public var nativeNameMeta(default, null): String = ":native";
+
+	/**
+		The metadata used for `@:native` meta that should replace the field access portion
+		of the call expression (this is the behavior of Haxe/C++ `@:native`).
+	**/
+	public var nativeReplaceMeta(default, null): String = ":native";
 
 	/**
 		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap

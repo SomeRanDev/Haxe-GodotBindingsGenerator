@@ -47,7 +47,7 @@ function main() {
 	try {
 		final typeDefinitions = godot.Bindings.generate(jsonPath, {
 			cpp: isCpp,
-			nativeMeta: nativeMeta
+			nativeNameMeta: nativeMeta
 		});
 		godot.Bindings.output(outputDir, typeDefinitions);
 	} catch(e) {
