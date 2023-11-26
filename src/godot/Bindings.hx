@@ -491,7 +491,7 @@ class Bindings {
 			macro category($v{utilityFunction.category}),
 			macro is_vararg($v{utilityFunction.is_vararg}),
 			macro hash($v{utilityFunction.hash}),
-			macro "#if gdscript :native"($v{processIdentifier(utilityFunction.name)})
+			macro $v{'#if gdscript :native'}($v{processIdentifier(utilityFunction.name)})
 			#end
 		);
 
@@ -968,7 +968,7 @@ class Bindings {
 			final setterType = setters.get(name);
 
 			final nativeMeta = if(propertyRenames.exists(name)) {
-				final result = makeMetadata(#if eval macro "#if use_properties :native"($v{name}) #end);
+				final result = makeMetadata(#if eval macro $v{'#if use_properties ${options.nativeMeta}'}($v{name}) #end);
 				name = propertyRenames.get(name).trustMe();
 				result;
 			} else {
@@ -1073,7 +1073,7 @@ class Bindings {
 	}
 '}),
 							macro godot_bindings_gen_append("\n#else"),
-							macro native($v{preimplName})
+							macro $v{options.nativeMeta}($v{preimplName})
 							#end
 						),
 					);
@@ -1090,11 +1090,11 @@ class Bindings {
 				// To get the behavior expected for GDScript's `get_node`, `get_node_internal` should be used.
 				if(options.cpp && cls.name == "Node" && originalName == "get_node") {
 					#if eval
-					baseFieldMetadata.push(makeMetadataEntry(macro $v{'#if $cxxFixGetNode :native'}("get_node_internal")));
+					baseFieldMetadata.push(makeMetadataEntry(macro $v{'#if $cxxFixGetNode ${options.nativeMeta}'}("get_node_internal")));
 					#end
 				} else if(preimplName != originalName) {
 					#if eval
-					baseFieldMetadata.push(makeMetadataEntry(macro native($v{originalName})));
+					baseFieldMetadata.push(makeMetadataEntry(macro $v{options.nativeMeta}($v{originalName})));
 					#end
 				}
 

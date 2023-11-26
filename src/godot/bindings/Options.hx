@@ -33,6 +33,11 @@ class Options {
 https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 
 	/**
+		The metadata used for `@:native` setups.
+	**/
+	public var nativeMeta(default, null): String = ":native";
+
+	/**
 		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
 		parameters/returns with representation for pointers and Godot's `Ref`. 
 	**/

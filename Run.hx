@@ -12,6 +12,12 @@ function main() {
 		true;
 	} else false;
 
+	// Check for --cpp
+	final nativeMeta = if(args.contains("--nativeName")) {
+		args.remove("--nativeName");
+		":nativeName";
+	} else ":native";
+
 	final cwd = switch(args) {
 		case ["help", _]: {
 			help();
@@ -40,7 +46,8 @@ function main() {
 
 	try {
 		final typeDefinitions = godot.Bindings.generate(jsonPath, {
-			cpp: isCpp
+			cpp: isCpp,
+			nativeMeta: nativeMeta
 		});
 		godot.Bindings.output(outputDir, typeDefinitions);
 	} catch(e) {
