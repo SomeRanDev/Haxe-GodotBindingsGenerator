@@ -1,3 +1,3 @@
-Multiple constructors with @:overload
-Signals
-Cleanup
+* ~~Multiple constructors with @:overload~~
+* Signals
+* Cleanup
