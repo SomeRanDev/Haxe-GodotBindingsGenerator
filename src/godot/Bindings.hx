@@ -2,12 +2,12 @@ package godot;
 
 import godot.bindings.Options;
 
-import godot.ExtensionApi.AnyEnum;
-import godot.ExtensionApi.BuiltinClass;
-import godot.ExtensionApi.Class as GodotClass;
-import godot.ExtensionApi.GlobalConstant;
-import godot.ExtensionApi.GlobalEnum;
-import godot.ExtensionApi.UtilityFunction;
+import godot.extension_api.Enums.AnyEnum;
+import godot.extension_api.BuiltinClass;
+import godot.extension_api.Class as GodotClass;
+import godot.extension_api.GlobalConstant;
+import godot.extension_api.Enums.GlobalOrClassEnum;
+import godot.extension_api.UtilityFunction;
 
 import haxe.Json;
 import haxe.io.Path;
@@ -111,6 +111,11 @@ class Bindings {
 		Names of the loaded Godot singletons.
 	**/
 	var singletons: Map<String, Bool>;
+
+	/**
+		A cache of enums to be referenced later when generating special properties that need them.
+	**/
+	var globalEnums: Map<String, GlobalOrClassEnum> = [];
 
 	/**
 		Constructor. Sets up all the fields.
@@ -561,8 +566,6 @@ class Bindings {
 			doc: processDescription(globalConstant.description)
 		}
 	}
-
-	var globalEnums: Map<String, GlobalEnum> = [];
 
 	/**
 		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.

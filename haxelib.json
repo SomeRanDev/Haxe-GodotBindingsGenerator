@@ -12,7 +12,7 @@
 		"bindings"
 	],
 	"dependencies": {
-		"godot-extension-api-typings": "1.0.3"
+		"godot-extension-api-typings": "1.1.0"
 	},
 	"classPath": "src/",
 	"releasenote": "Add @:avoid_temporaries meta on builtin-classes.",
