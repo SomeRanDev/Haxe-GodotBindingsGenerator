@@ -244,8 +244,20 @@ class Bindings {
 			}
 		}
 
-		if(StringTools.startsWith(typeString, "enum::") || StringTools.startsWith(typeString, "bitfield::")) {
-			return macro : Dynamic;
+		if(StringTools.startsWith(typeString, "enum::")) {
+			final enumTypePath = typeString.substr("enum::".length);
+			final enumPack = enumTypePath.split(".");
+			return TPath({
+				pack: getPack(),
+				name: enumPack.join("_")
+			});
+		} else if(StringTools.startsWith(typeString, "bitfield::")) {
+			final bitfieldTypePath = typeString.substr("bitfield::".length);
+			final bitfieldPack = bitfieldTypePath.split(".");
+			return TPath({
+				pack: getPack(),
+				name: bitfieldPack.join("_")
+			});
 		}
 
 		return switch(typeString) {
@@ -373,6 +385,7 @@ class Bindings {
 		// Generate bindings for "global_enums"
 		for(e in data.global_enums) {
 			result.push(generateGlobalEnum(e));
+			globalEnums.set(e.name, e);
 		}
 
 		// Generate bindings for "builtin_classes"
@@ -402,10 +415,16 @@ class Bindings {
 			}
 		}
 
+		for(cls in data.classes) {
+			for(e in cls.enums.denullify()) {
+				globalEnums.set(cls.name + "_" + e.name, e);
+			}
+		}
+
 		// Generate bindings for "classes"
 		final hierarchyData = options.generateHierarchyMeta.length > 0 ? generateHierarchyData(data.classes) : null;
 		for(cls in data.classes) {
-			final typeDefinition = generateClass(cls);
+			final typeDefinition = generateClass(cls, result);
 
 			// Generate additional metadata from `generateHierarchyMeta`
 			if(hierarchyData != null && hierarchyData.exists(cls.name)) {
@@ -538,29 +557,41 @@ class Bindings {
 		}
 	}
 
+	var globalEnums: Map<String, GlobalEnum> = [];
+
 	/**
 		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.
 	**/
-	function generateGlobalEnum(globalEnum: GlobalEnum): TypeDefinition {
+	function generateGlobalEnum(globalEnum: GlobalEnum, wrapperClassName: Null<String> = null): TypeDefinition {
 		final meta = makeMetadata(
 			#if eval
 				#if (haxe < version("4.3.2"))
 				macro ":enum"(),
 				#end
+				macro cppEnum,
 				macro generated_godot_api,
 				macro bindings_api_type("global_enum"),
-				macro is_bitfield($v{globalEnum.is_bitfield})
+				macro is_bitfield($v{globalEnum.is_bitfield}),
+				macro "#if gdscript :native"($v{
+					(wrapperClassName != null ? (wrapperClassName + ".") : "") + globalEnum.name
+				})
 			#end
 		);
+
+		final uniqueName = (wrapperClassName != null ? (wrapperClassName + "_") : "") + globalEnum.name;
+		final name = processTypeName(uniqueName);
 
 		if(options.cpp) {
 			#if eval
 			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}("godot_cpp/classes/global_constants_binds.hpp")));
+			meta.push(makeMetadataEntry(macro $v{'#if ${options.cppDefine} :native'}($v{
+				"godot::" + (wrapperClassName != null ? (wrapperClassName + "::") : "") + globalEnum.name
+			})));
 			#end
 		}
 
 		return {
-			name: processTypeName(globalEnum.name),
+			name: name,
 			pack: getPack(),
 			pos: makeEmptyPosition(),
 			fields: globalEnum.values.map(function(godotEnumValue): Field {
@@ -568,18 +599,44 @@ class Bindings {
 					name: processIdentifier(godotEnumValue.name),
 					pos: makeEmptyPosition(),
 					access: [APublic, AStatic],
-					kind: FVar(macro : Int, #if eval macro $v{godotEnumValue.value} #end),
+					kind: FFun({
+						args: [],
+						ret: null,
+						expr: null,
+						params: null
+					}),
 					doc: processDescription(godotEnumValue.description)
 				}
 			}),
 			meta: meta,
-			kind: TDAbstract(macro : Int, 
-				#if (haxe >= version("4.3.2"))
-				[AbstractFlag.AbEnum]
-				#else
-				#end
-			)
+			isExtern: true,
+			kind: TDEnum
 		}
+
+		// return {
+		// 	name: name,
+		// 	pack: getPack(),
+		// 	pos: makeEmptyPosition(),
+		// 	fields: globalEnum.values.map(function(godotEnumValue): Field {
+		// 		return {
+		// 			name: processIdentifier(godotEnumValue.name),
+		// 			pos: makeEmptyPosition(),
+		// 			access: [APublic, AStatic],
+		// 			kind: FVar(macro : Int, #if eval macro $v{godotEnumValue.value} #end),
+		// 			doc: processDescription(godotEnumValue.description)
+		// 			// meta: makeMetadata(#if eval macro "#if cxx :native"($v{
+		// 			// 	'godot::${(wrapperClassName != null ? wrapperClassName + "::" : "")}${globalEnum.name}::${godotEnumValue.name}'
+		// 			// }) #end)
+		// 		}
+		// 	}),
+		// 	meta: meta,
+		// 	kind: TDAbstract(macro : Int, 
+		// 		#if (haxe >= version("4.3.2"))
+		// 		[AbstractFlag.AbEnum]
+		// 		#else
+		// 		#end
+		// 	)
+		// }
 	}
 
 	/**
@@ -733,7 +790,7 @@ class Bindings {
 	/**
 		Generates the `TypeDefinition` from a "classes" object from `extension_api.json`.
 	**/
-	function generateClass(cls: GodotClass): TypeDefinition {
+	function generateClass(cls: GodotClass, typeDefinitionArray: Array<TypeDefinition>): TypeDefinition {
 		final fields = [];
 		final fieldAccess = [APublic];
 
@@ -772,11 +829,11 @@ class Bindings {
 		// They can still be used by calling the getter/setter function directly.
 		final ignoreProperties: Map<String, Bool> = [];
 		function prop(p: String) {
-			return if(StringTools.startsWith(p, "enum::")) "int";
-			else if(StringTools.startsWith(p, "bitfield::")) "int";
+			// return if(StringTools.startsWith(p, "enum::")) "int";
+			// else if(StringTools.startsWith(p, "bitfield::")) "int";
 			// Uncomment once a solution to treat Strings and StringNames the same is found...
 			// else if(p == "StringName") "String";
-			else p;
+			return p;
 		}
 		for(method in cls.methods.denullify()) {
 			final getterSetterData = getterSetterFound.get(method.name);
@@ -874,12 +931,44 @@ class Bindings {
 				if(isSpecialIndexedProp) {
 					final typeString = haxe.macro.ComplexTypeTools.toString(getType(property.type));
 
+					var enumName = null;
+					final enumIndex = property.index;
+					if(enumIndex == null) throw "Impossible";
+
+					var resultingValue = Std.string(enumIndex);
+
+					for(m in cls.methods.denullify()) {
+						if(m.name == property.getter) {
+							enumName = m.arguments.denullify()[0].trustMe().type;
+							break;
+						}
+					}
+
+					if(enumName != null && StringTools.startsWith(enumName, "enum::")) {
+						final enumPack = enumName.substr("enum::".length).split(".");
+						final enumClassName = enumPack[0];
+						final enumLocalName = enumPack[enumPack.length - 1];
+						final enumHaxeName = enumPack.join("_");
+
+						var enumObj = globalEnums.get(enumHaxeName);
+
+						if(enumObj != null) {
+							var name = null;
+							for(v in enumObj.values) {
+								if(v.value == enumIndex) {
+									name = v.name;
+								}
+							}
+							if(name != null) resultingValue = name;
+						}
+					}
+
 					final getter = '\tpublic extern inline function get_$name(): $typeString {
-		return cast ${property.getter}(${property.index});
+		return cast ${property.getter}(${resultingValue});
 	}';
 
 					final setter = !hasSetter ? "" : '\tpublic extern inline function set_$name(v: $typeString): $typeString {
-		${property.setter}(${property.index}, cast v);
+		${property.setter}(${resultingValue}, cast v);
 		return v;
 	}\n';
 
@@ -1122,19 +1211,9 @@ class Bindings {
 			}>,
 		**/
 
-		/**TODO
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L956C16-L956C16
-			enums: MaybeArray<{
-				name: String,
-				is_bitfield: Int,
-				values: Array<{
-					name: String,
-					value: Int,
-					description: Null<String>
-				}>,
-				description: Null<String>
-			}>,
-		**/
+		for(e in cls.enums.denullify()) {
+			typeDefinitionArray.push(generateGlobalEnum(e, processTypeName(cls.name)));
+		}
 
 		final meta = makeMetadata(
 			#if eval
