@@ -45,6 +45,15 @@ https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 	public var nativeReplaceMeta(default, null): String = ":native";
 
 	/**
+		If `true`, multiple constructors will take the form of `overload` static functions
+		named "make" with a `@:constructor` metadata.
+
+		If `false`, a single constructor is generated with `@:overload` metadata used to
+		express the alternative versions.
+	**/
+	public var staticFunctionConstructors(default, null): Bool = false;
+
+	/**
 		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
 		parameters/returns with representation for pointers and Godot's `Ref`. 
 	**/

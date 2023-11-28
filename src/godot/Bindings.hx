@@ -660,34 +660,79 @@ class Bindings {
 		final fields = [];
 		final fieldAccess = [APublic];
 
-		for(constructor in cls.constructors.denullify()) {
-			final args = constructor.arguments.maybeMap(function(arg): FunctionArg {
-				return {
-					name: processIdentifier(arg.name),
-					type: getType(arg.type)
-				}
-			});
+		if(!options.staticFunctionConstructors) {
+			final constructorOverloadMeta = [];
 
-			if(constructor.arguments?.length == 0 || cls.constructors?.length == 1) {
+			final constructors = cls.constructors.denullify();
+
+			for(i in 1...constructors.length) {
+				final args = constructors[i].arguments.maybeMap(function(arg): FunctionArg {
+					return {
+						name: processIdentifier(arg.name),
+						type: getType(arg.type)
+					}
+				});
+
+				constructorOverloadMeta.push({
+					name: ":overload",
+					params: [{
+						expr: EFunction(FAnonymous, { args: args, ret: null, expr: macro {} }),
+						pos: makeEmptyPosition()
+					}],
+					pos: makeEmptyPosition()
+				});
+			}
+
+			if(constructors.length > 0) {
+				final args = constructors[0].arguments.maybeMap(function(arg): FunctionArg {
+					return {
+						name: processIdentifier(arg.name),
+						type: getType(arg.type)
+					}
+				});
+
 				fields.push({
 					name: "new",
 					pos: makeEmptyPosition(),
 					access: fieldAccess,
 					kind: FFun({ args: args, ret: null }),
-					meta: [],
-					doc: processDescription(constructor.description)
+					meta: constructorOverloadMeta,
+					doc: processDescription(constructors[0].description)
 				});
-			} else {
-				fields.push({
-					name: "make",
-					pos: makeEmptyPosition(),
-					access: fieldAccess.concat([AStatic, AOverload]),
-					kind: FFun({ args: args, ret: getType(processTypeName(cls.name)) }),
-					meta: makeMetadata(
-						macro constructor
-					),
-					doc: processDescription(constructor.description)
+			}
+			
+
+		} else {
+			for(constructor in cls.constructors.denullify()) {
+				final args = constructor.arguments.maybeMap(function(arg): FunctionArg {
+					return {
+						name: processIdentifier(arg.name),
+						type: getType(arg.type)
+					}
 				});
+
+				// options.staticFunctionConstructors == `true`
+				if(constructor.arguments?.length == 0 || cls.constructors?.length == 1) {
+					fields.push({
+						name: "new",
+						pos: makeEmptyPosition(),
+						access: fieldAccess,
+						kind: FFun({ args: args, ret: null }),
+						meta: [],
+						doc: processDescription(constructor.description)
+					});
+				} else {
+					fields.push({
+						name: "make",
+						pos: makeEmptyPosition(),
+						access: fieldAccess.concat([AStatic, AOverload]),
+						kind: FFun({ args: args, ret: getType(processTypeName(cls.name)) }),
+						meta: makeMetadata(
+							macro constructor
+						),
+						doc: processDescription(constructor.description)
+					});
+				}
 			}
 		}
 
