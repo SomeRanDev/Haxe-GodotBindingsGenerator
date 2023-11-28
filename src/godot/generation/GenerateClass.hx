@@ -207,7 +207,7 @@ class GenerateClass {
 					access: fieldAccess.concat([AStatic]),
 					meta: !options.cpp ? [] : Util.makeMetadata(
 						#if eval
-						macro godot_bindings_gen_prepend($v{'#if !${Util.cxxInlineSingletonsCondition}'}),
+						macro godot_bindings_gen_prepend($v{'#if !${Bindings.cxxInlineSingletonsCondition}'}),
 						macro godot_bindings_gen_append("#end")
 						#end
 					)
@@ -419,7 +419,7 @@ class GenerateClass {
 						null,
 						Util.makeMetadata(
 							#if eval
-							macro godot_bindings_gen_prepend($v{'#if ${Util.cxxInlineSingletonsCondition}'}),
+							macro godot_bindings_gen_prepend($v{'#if ${Bindings.cxxInlineSingletonsCondition}'}),
 							macro godot_bindings_gen_append("\n#else")
 							#end
 						),
@@ -476,7 +476,7 @@ class GenerateClass {
 				// To get the behavior expected for GDScript's `get_node`, `get_node_internal` should be used.
 				if(options.cpp && cls.name == "Node" && originalName == "get_node") {
 					#if eval
-					baseFieldMetadata.push(Util.makeMetadataEntry(macro $v{'#if ${Util.cxxFixGetNode} ${options.nativeNameMeta}'}("get_node_internal")));
+					baseFieldMetadata.push(Util.makeMetadataEntry(macro $v{'#if ${Bindings.cxxFixGetNode} ${options.nativeNameMeta}'}("get_node_internal")));
 					#end
 				} else if(preimplName != originalName) {
 					#if eval

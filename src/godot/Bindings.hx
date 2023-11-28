@@ -151,20 +151,6 @@ class Bindings {
 	}
 
 	/**
-		Converts a camel-case identifier to snake-case.
-		Used to generate the proper header `@:include`s for godot-cpp.
-
-		Based on the same technique:
-		https://github.com/godotengine/godot-cpp/blob/master/binding_generator.py
-		https://github.com/godotengine/godot-cpp/blob/master/LICENSE.md
-	**/
-	static function camelToSnake(name: String): String {
-		name = ~/(.)([A-Z][a-z]+)/.replace(name, "$1_$2");
-		name = ~/([a-z0-9])([A-Z])/.replace(name, "$1_$2");
-		return StringTools.replace(StringTools.replace(name, "2_D", "2D"), "3_D", "3D").toLowerCase();
-	}
-
-	/**
 		Get the "pack" that should be used by the Godot Haxe binding types.
 	**/
 	public function getPack(): Array<String> {

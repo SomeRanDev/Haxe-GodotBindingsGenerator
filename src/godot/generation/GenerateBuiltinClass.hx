@@ -1,5 +1,6 @@
 package godot.generation;
 
+import haxe.macro.Context;
 import haxe.macro.Expr;
 
 import godot.BindingsUtil as Util;
