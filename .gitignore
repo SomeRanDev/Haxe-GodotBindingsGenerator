@@ -1,3 +1,2 @@
-dump/
-godot/
-godot_bindings/
+/dump
+/godot
