@@ -676,7 +676,7 @@ class Bindings {
 				constructorOverloadMeta.push({
 					name: ":overload",
 					params: [{
-						expr: EFunction(FAnonymous, { args: args, ret: null, expr: macro {} }),
+						expr: EFunction(FAnonymous, { args: args, ret: macro : Void, expr: macro {} }),
 						pos: makeEmptyPosition()
 					}],
 					pos: makeEmptyPosition()
