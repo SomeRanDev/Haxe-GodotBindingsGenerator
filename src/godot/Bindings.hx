@@ -2,6 +2,7 @@ package godot;
 
 import godot.bindings.Options;
 
+import godot.ExtensionApi.AnyEnum;
 import godot.ExtensionApi.BuiltinClass;
 import godot.ExtensionApi.Class as GodotClass;
 import godot.ExtensionApi.GlobalConstant;
@@ -13,13 +14,13 @@ import haxe.io.Path;
 
 import haxe.macro.Context;
 import haxe.macro.Expr;
-#if (haxe >= version("4.3.2"))
-import haxe.macro.Expr.AbstractFlag;
-#end
+#if (haxe >= version("4.3.2")) import haxe.macro.Expr.AbstractFlag; #end
 import godot.haxestd.Printer;
 
 import sys.FileSystem;
 import sys.io.File;
+
+// ---
 
 using godot.bindings.NullableArrayTools;
 using godot.bindings.NullTools;
@@ -394,6 +395,10 @@ class Bindings {
 				continue;
 			}
 			result.push(generateBuiltinClass(builtin));
+
+			for(e in builtin.enums.denullify()) {
+				result.push(generateGlobalEnum(e, processTypeName(builtin.name)));
+			}
 		}
 
 		// Figure out which classes should be Ref<T> or T*
@@ -562,7 +567,7 @@ class Bindings {
 	/**
 		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.
 	**/
-	function generateGlobalEnum(globalEnum: GlobalEnum, wrapperClassName: Null<String> = null): TypeDefinition {
+	function generateGlobalEnum(globalEnum: AnyEnum, wrapperClassName: Null<String> = null): TypeDefinition {
 		final meta = makeMetadata(
 			#if eval
 				#if (haxe < version("4.3.2"))
@@ -571,12 +576,18 @@ class Bindings {
 				macro cppEnum,
 				macro generated_godot_api,
 				macro bindings_api_type("global_enum"),
-				macro is_bitfield($v{globalEnum.is_bitfield}),
 				macro "#if gdscript :native"($v{
 					(wrapperClassName != null ? (wrapperClassName + ".") : "") + globalEnum.name
 				})
 			#end
 		);
+
+		// Global and class enums have a `is_bitfield` field we need to account for
+		if(Reflect.hasField(globalEnum, "is_bitfield")) {
+			#if eval
+			meta.push(makeMetadataEntry(macro is_bitfield($v{Reflect.field(globalEnum, "is_bitfield")})));
+			#end
+		}
 
 		final uniqueName = (wrapperClassName != null ? (wrapperClassName + "_") : "") + globalEnum.name;
 		final name = processTypeName(uniqueName);
