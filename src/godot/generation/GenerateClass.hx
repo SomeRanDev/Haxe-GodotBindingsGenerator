@@ -425,7 +425,7 @@ class GenerateClass {
 						),
 						[AStatic, AExtern, AInline],
 						#if eval macro {
-							untyped __include__($v{"godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"});
+							@:include($v{"godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"})
 							return untyped __cpp__($a{totalArgs});
 						} #else null #end
 					);
