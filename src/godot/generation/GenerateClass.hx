@@ -21,6 +21,62 @@ class GenerateClass {
 	**/
 	static var singletons: Map<String, Bool> = [];
 
+
+	/**
+		Preemptively iterate through the "classes" and figure out which ones
+		extend from the `generateHierarchyMeta` list.
+	**/
+	static function generateHierarchyData(classes: Array<GodotClass>, bindings: Bindings): Map<String, Map<String, Bool>> {
+		final options = bindings.options;
+
+		final hierarchyData: Map<String, Map<String, Bool>> = [];
+		final unprocessedChildren: Map<String, Array<GodotClass>> = [];
+
+		function processHierarchy(cls: GodotClass) {
+			if(hierarchyData.exists(cls.name)) {
+				return;
+			}
+
+			final isBase = options.generateHierarchyMeta.contains(cls.name);
+			final superClass = cls.inherits;
+			if(superClass == null || superClass == "Object") {
+				final map: Map<String, Bool> = [];
+				for(m in options.generateHierarchyMeta) {
+					map.set(m, cls.name == m);
+				}
+				hierarchyData.set(cls.name, map);
+			} else if(hierarchyData.exists(superClass)) {
+				final map = Reflect.copy(hierarchyData.get(superClass));
+				if(map == null) {
+					throw "Reflect.copy failed.";
+				}
+				if(isBase) {
+					map.set(cls.name, true);
+				}
+				hierarchyData.set(cls.name, map);
+			} else {
+				if(!unprocessedChildren.exists(superClass)) {
+					unprocessedChildren.set(superClass, []);
+				}
+				unprocessedChildren.get(superClass).trustMe().push(cls);
+				return;
+			}
+
+			if(unprocessedChildren.exists(cls.name)) {
+				for(child in unprocessedChildren.get(cls.name).trustMe()) {
+					processHierarchy(child);
+				}
+				unprocessedChildren.remove(cls.name);
+			}
+		}
+
+		for(cls in classes) {
+			processHierarchy(cls);
+		}
+
+		return hierarchyData;
+	}
+
 	/**
 		Generates and adds all type definitions from `classes`.
 	**/
@@ -55,7 +111,7 @@ class GenerateClass {
 		}
 
 		// Generate bindings for "classes"
-		final hierarchyData = options.generateHierarchyMeta.length > 0 ? bindings.generateHierarchyData(data.classes) : null;
+		final hierarchyData = options.generateHierarchyMeta.length > 0 ? generateHierarchyData(data.classes, bindings) : null;
 		for(cls in data.classes) {
 			final typeDefinition = generateClass(cls, bindings);
 
