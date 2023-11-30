@@ -462,10 +462,18 @@ class GenerateClass {
 				additionalAccess: Null<Array<Access>> = null,
 				expr: Null<Expr> = null
 			) {
+				final access = fieldAccess.copy();
+				if(method.is_static) {
+					access.push(AStatic);
+				}
+				if(additionalAccess != null) {
+					for(a in additionalAccess) access.push(a);
+				}
+
 				fields.push({
 					name: overrideName ?? name,
 					pos: Util.makeEmptyPosition(),
-					access: additionalAccess == null ? fieldAccess : (fieldAccess.concat(additionalAccess)),
+					access: access,
 					kind: FFun({
 						args: method.arguments.maybeMap(function(godotArg): FunctionArg {
 							return {
