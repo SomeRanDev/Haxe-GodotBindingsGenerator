@@ -44,15 +44,11 @@ function main() {
 
 	Sys.setCwd(cwd);
 
-	try {
-		final typeDefinitions = godot.Bindings.generate(jsonPath, {
-			cpp: isCpp,
-			nativeNameMeta: nativeMeta
-		});
-		godot.Bindings.output(outputDir, typeDefinitions);
-	} catch(e) {
-		Sys.println('ERROR:\n${e.message}');
-	}
+	final typeDefinitions = godot.Bindings.generate(jsonPath, {
+		cpp: isCpp,
+		nativeNameMeta: nativeMeta
+	});
+	godot.Bindings.output(outputDir, typeDefinitions);
 }
 
 function help() {
