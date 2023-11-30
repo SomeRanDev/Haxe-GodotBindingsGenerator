@@ -28,6 +28,8 @@ class GenerateBuiltinClass {
 
 			result.push(generateBuiltinClass(builtin, bindings));
 
+			bindings.builtinClasses.set(builtin.name, builtin);
+
 			for(e in builtin.enums.denullify()) {
 				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(builtin.name)));
 			}

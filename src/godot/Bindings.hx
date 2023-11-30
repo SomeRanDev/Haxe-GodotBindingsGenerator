@@ -1,5 +1,6 @@
 package godot;
 
+import godot.extension_api.BuiltinClass;
 import godot.BindingsUtil as Util;
 
 import godot.bindings.Options;
@@ -111,6 +112,11 @@ class Bindings {
 		A cache of enums to be referenced later when generating special properties that need them.
 	**/
 	var globalEnums: Map<String, GlobalOrClassEnum> = [];
+
+	/**
+		A cache of builtin-classes to be referenced later when generating special properties that need them.
+	**/
+	var builtinClasses: Map<String, BuiltinClass> = [];
 
 	/**
 		Constructor. Sets up all the fields.

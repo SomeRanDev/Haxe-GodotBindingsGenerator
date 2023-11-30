@@ -21,6 +21,11 @@ class GenerateClass {
 	**/
 	static var singletons: Map<String, Bool> = [];
 
+	/**
+		This is a map of builtin classes that have been validated to have
+		a constructor that would work with `@:reassignOnSubfieldEdit`.
+	**/
+	static var validatedROSEBuiltinClasses: Map<String, Array<String>> = [];
 
 	/**
 		Preemptively iterate through the "classes" and figure out which ones
@@ -328,6 +333,35 @@ class GenerateClass {
 						macro godot_bindings_gen_prepend($v{'$getter\n$setter'}),
 						#end
 					);
+				}
+
+				// @:reassignOnSubfieldEdit
+				if(hasSetter) {
+					final builtinClassType = bindings.builtinClasses.get(property.type);
+					if(builtinClassType != null) {
+						var margs = validatedROSEBuiltinClasses.get(property.name);
+						if(margs == null) {
+							margs = ["set_" + name + "_impl"];
+
+							final members = builtinClassType.members.denullify();
+							for(c in builtinClassType.constructors.denullify()) {
+								for(carg in c.arguments.denullify()) {
+									for(m in members) {
+										if(m.name == carg.name && m.type == carg.type) {
+											margs.push(m.name);
+											break;
+										}
+									}
+								}
+							}
+
+							validatedROSEBuiltinClasses.set(property.name, margs);
+						}
+						
+						propertyMeta.push(Util.makeMetadataEntry(
+							macro reassignOnSubfieldEdit($a{margs.map(m -> macro $i{m})})
+						));
+					}
 				}
 
 				fields.push({
