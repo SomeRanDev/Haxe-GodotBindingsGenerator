@@ -91,6 +91,8 @@ class GenerateBuiltinClass {
 				case _: null;
 			}
 
+			if(opName == null) continue;
+
 			// Generate name for field
 			var opFieldName = opName.substr(2, 1).toLowerCase() + opName.substr(3);
 			if(opFieldName == "in") opFieldName += "Op";
@@ -100,7 +102,7 @@ class GenerateBuiltinClass {
 			if(!nameCounter.exists(opFieldName)) nameCounter.set(opFieldName, 1);
 			else {
 				final ogName = opFieldName;
-				final count = nameCounter.get(ogName) + 1;
+				final count = (nameCounter.get(ogName) ?? 0) + 1;
 				opFieldName += count;
 				nameCounter.set(ogName, count);
 			}
@@ -269,7 +271,7 @@ class GenerateBuiltinClass {
 
 				// Do #else if possible to generate static getter
 				final append = haxeExprString != null ? '#else' : '#end';
-				meta.push(Util.makeMetadataEntry(#if eval macro godot_bindings_gen_append($v{append})) #end);
+				#if eval meta.push(Util.makeMetadataEntry( macro godot_bindings_gen_append($v{append}))); #end
 
 				fields.push({
 					name: Util.processIdentifier(constant.name),
