@@ -339,27 +339,42 @@ class GenerateClass {
 				if(hasSetter) {
 					final builtinClassType = bindings.builtinClasses.get(property.type);
 					if(builtinClassType != null) {
-						var margs = validatedROSEBuiltinClasses.get(property.name);
+						var margs = validatedROSEBuiltinClasses.get(property.type);
 						if(margs == null) {
-							margs = ["set_" + name + "_impl"];
+							margs = [];
 
 							final members = builtinClassType.members.denullify();
+							final membersMap: Map<String, String> = [];
+							for(m in members) {
+								membersMap.set(m.name, m.type);
+							}
 							for(c in builtinClassType.constructors.denullify()) {
-								for(carg in c.arguments.denullify()) {
-									for(m in members) {
-										if(m.name == carg.name && m.type == carg.type) {
-											margs.push(m.name);
+								final constructorArgs = c.arguments.denullify();
+
+								// Found the constructor!
+								if(constructorArgs.length == members.length) {
+									var found = true;
+									for(carg in constructorArgs) {
+										final memberType = membersMap.get(carg.name);
+										if(memberType != null && memberType == carg.type) {
+											margs.push(carg.name);
+										} else {
+											margs = []; // Clear and try again...
+											found = false;
 											break;
 										}
+									}
+									if(found) {
+										break;
 									}
 								}
 							}
 
-							validatedROSEBuiltinClasses.set(property.name, margs);
+							validatedROSEBuiltinClasses.set(property.type, margs);
 						}
 						
 						propertyMeta.push(Util.makeMetadataEntry(
-							macro reassignOnSubfieldEdit($a{margs.map(m -> macro $i{m})})
+							macro reassignOnSubfieldEdit($a{["set_" + name + "_impl"].concat(margs).map(m -> macro $i{m})})
 						));
 					}
 				}
