@@ -26,7 +26,11 @@ class GenerateBuiltinClass {
 				continue;
 			}
 
-			result.push(generateBuiltinClass(builtin, bindings));
+			final fieldsTypeDef: TypeDefinition = generateBuiltinClass(builtin, bindings);
+			result.push(fieldsTypeDef);
+
+			// Operators abstract
+			result.push(generateBuiltinAbstract(fieldsTypeDef, builtin, bindings));
 
 			bindings.builtinClasses.set(builtin.name, builtin);
 
@@ -34,6 +38,122 @@ class GenerateBuiltinClass {
 				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(builtin.name)));
 			}
 		}
+	}
+
+	/**
+		Generates the abstract wrapper containing the operator overloads.
+	**/
+	static function generateBuiltinAbstract(fieldsTypeDef: TypeDefinition, cls: BuiltinClass, bindings: Bindings): TypeDefinition {
+		final options = bindings.options;
+		final name = Util.processTypeName(cls.name);
+		
+		final fieldsClassCt = ComplexType.TPath({
+			name: fieldsTypeDef.name,
+			pack: bindings.getPack()
+		});
+
+		final selAbstractCt = ComplexType.TPath({
+			name: name,
+			pack: bindings.getPack()
+		});
+
+		final fields: Array<Field> = [];
+
+		final nameCounter: Map<String, Int> = [];
+		for(op in cls.operators.denullify()) {
+			final opExpr = switch(op.name) {
+				case "not": macro !A;
+				case "unary-": macro -A;
+				case "unary+": continue; // +A not supported
+				case "and": macro A & B;
+				case "or": macro A | B;
+				case "xor": macro A ^ B;
+				case op: {
+					#if eval
+					Context.parse("A " + op + " B", Context.currentPos());
+					#else
+					throw "Impossible";
+					#end
+				}
+			}
+
+			final opInject = switch(op.name) {
+				case "not": "!{0}";
+				case "unary-": "-{0}";
+				case "unary+": continue; // +A not supported
+				case op: "{0} " + op + " {1}";
+			}
+
+			final opName = switch(opExpr.expr) {
+				case EUnop(op, _, _): Std.string(op);
+				case EBinop(op, _, _): Std.string(op);
+				case _: null;
+			}
+
+			// Generate name for field
+			var opFieldName = opName.substr(2, 1).toLowerCase() + opName.substr(3);
+			if(opFieldName == "in") opFieldName += "Op";
+
+			// Make sure the name is unique.
+			// TODO: Maybe use overload instead?
+			if(!nameCounter.exists(opFieldName)) nameCounter.set(opFieldName, 1);
+			else {
+				final ogName = opFieldName;
+				final count = nameCounter.get(ogName) + 1;
+				opFieldName += count;
+				nameCounter.set(ogName, count);
+			}
+
+			final args = [
+				{ name: "self", type: selAbstractCt }
+			];
+
+			if(op.right_type != null) {
+				args.push({
+					name: "other",
+					type: bindings.getType(op.right_type)
+				});
+			}
+			
+			final injectExpr = {
+				expr: EMeta({
+					name: "-printer-inject",
+					pos: Util.makeEmptyPosition()
+				}, {
+					expr: EConst(CIdent('${options.injectFunction}("${opInject}", ${args.map(a -> a.name).join(", ")})')),
+					pos: Util.makeEmptyPosition()
+				}),
+				pos: Util.makeEmptyPosition()
+			};
+
+			fields.push({
+				name: opFieldName,
+				doc: Util.processDescription(op.description),
+				access: [APublic, AStatic, AInline],
+				kind: FFun({
+					args: args,
+					ret: bindings.getReturnType(op.return_type),
+					expr: macro {
+						return $injectExpr;
+					}
+				}),
+				pos: Util.makeEmptyPosition(),
+				meta: [
+					{ name: ":op", params: [opExpr], pos: Util.makeEmptyPosition() }
+				]
+			});
+		}
+
+		return {
+			name: name,
+			pack: bindings.getPack(),
+			pos: Util.makeEmptyPosition(),
+			fields: fields,
+			kind: TDAbstract(fieldsClassCt),
+			isExtern: true,
+			meta: Util.makeMetadata(macro forward, macro ":forward.new", macro forwardStatics),
+			doc: Util.processDescription(cls.description)
+		};
 	}
 
 	/**
@@ -208,15 +328,23 @@ class GenerateBuiltinClass {
 			#end
 		}
 
+		final nativeName = Util.processTypeName(cls.name);
+		final fieldsClassName = nativeName + "_Fields";
+
+		#if eval
+		meta.push(Util.makeMetadataEntry(macro nativeName($v{nativeName})));
+		#end 
+
 		return {
-			name: Util.processTypeName(cls.name),
+			name: fieldsClassName,
 			pack: bindings.getPack(),
 			pos: Util.makeEmptyPosition(),
 			fields: fields,
 			kind: TDClass(null, null, false, false, false),
 			isExtern: true,
 			meta: meta,
-			doc: Util.processDescription(cls.description)
+			// doc is applied on abstract
+			// doc: Util.processDescription(cls.description)
 		}
 	}
 }

@@ -326,6 +326,7 @@ class Printer {
 			case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
 			case ECheckType(e1, ct): '(${printExpr(e1)} : ${printComplexType(ct)})';
 			case EMeta({ name:":implicitReturn" }, { expr:EReturn(e1) }): printExpr(e1);
+			case EMeta({ name:"-printer-inject" }, { expr:EConst(CIdent(code)) }): code;
 			case EMeta(meta, e1): printMetadata(meta) + " " + printExpr(e1);
 		}
 

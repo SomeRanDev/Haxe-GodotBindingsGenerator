@@ -33,6 +33,14 @@ class Options {
 https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 
 	/**
+		This defines the Haxe code that should be used to inject code
+		directly to the target.
+
+		It is placed into the Haxe code as-is.
+	**/
+	public var injectFunction(default, null): String = "untyped #if gdscript __gdscript__ #else __cpp__ #end";
+
+	/**
 		The metadata used to signify the "native" name of a class field.
 		It should replace the name, but not the entire call expression.
 	**/
