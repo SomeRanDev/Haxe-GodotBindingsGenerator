@@ -12,9 +12,9 @@ If you just want un-modified, basic Godot bindings, you can do that too!
 
 ## Installation Table of Epicness
 
-First intall via haxelib.
+First install via git.
 ```
-haxelib install godot-api-generator
+haxelib git godot-api-generator https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator
 ```
 
 &nbsp;
