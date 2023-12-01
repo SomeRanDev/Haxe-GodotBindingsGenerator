@@ -24,9 +24,13 @@ jobs:
       - name: Setup Library
         run: haxelib git godot-api-generator "${{ github.workspace }}"
 
+      - name: Test Help
+        working-directory: ${{ github.workspace }}
+        run: haxelib run godot-api-generator help
+
       - name: Create Bindings
         working-directory: ${{ github.workspace }}
-        run: haxelib run godot-api-generator "test/extension_api.json" "${{ github.workspace }}/godot"
+        run: haxelib run godot-api-generator "${{ github.workspace }}/godot" "test/extension_api.json" 
 
       - name: Test DevEnv.hxml
         run: haxe DevEnv.hxml
