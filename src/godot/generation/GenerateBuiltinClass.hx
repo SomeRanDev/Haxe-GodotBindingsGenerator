@@ -157,10 +157,41 @@ class GenerateBuiltinClass {
 		final fields: Array<Field> = [];
 		final fieldAccess = [APublic];
 
+		final constructors = cls.constructors.denullify();
+
+		// For some reason, constructors using all the members exists in both GDScript and Godot-CPP,
+		// but they are not shown in `extension_api.json`.
+		//
+		// We need these for some getter constants, so let's make them exist.
+		switch(cls.name) {
+			case "Basis" | "Projection" | "Transform2D" | "Transform3D": {
+				constructors.push({
+					index: -1,
+					arguments: {
+						final result = [];
+						for(m in cls.members.denullify()) {
+							function addMember(name, type) {
+								switch(type) {
+									case "float": result.push({ name: name, type: "float" });
+									case "Vector2": for(f in ["x", "y"]) addMember(name + f, "float");
+									case "Vector3": for(f in ["x", "y", "z"]) addMember(name + f, "float");
+									case "Vector4": for(f in ["x", "y", "z", "w"]) addMember(name + f, "float");
+									case "Basis": for(f in ["x", "y", "z"]) addMember(name + f, "Vector3");
+									case a: throw a;
+								}
+							}
+							addMember(m.name, m.type);
+						}
+						result;
+					},
+					description: null
+				});
+			}
+			case _:
+		}
+
 		if(!bindings.options.staticFunctionConstructors) {
 			final constructorOverloadMeta = [];
-
-			final constructors = cls.constructors.denullify();
 
 			for(i in 1...constructors.length) {
 				final args = constructors[i].arguments.maybeMap(function(arg, _): FunctionArg {
@@ -197,10 +228,9 @@ class GenerateBuiltinClass {
 					doc: Util.processDescription(constructors[0].description)
 				});
 			}
-			
 
 		} else {
-			for(constructor in cls.constructors.denullify()) {
+			for(constructor in constructors) {
 				final args = constructor.arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
@@ -249,7 +279,6 @@ class GenerateBuiltinClass {
 				case "bool" | "int" | "float": constant.value;
 				case "String": constant.value; // TODO: wrap in quotes??
 				case "Array" | "Variant": null;
-				case "Basis" | "Projection" | "Transform2D" | "Transform3D": null;
 				case _ if(constant.value.startsWith(constant.type)): {
 					if(constant.value.contains("inf")) {
 						null;
