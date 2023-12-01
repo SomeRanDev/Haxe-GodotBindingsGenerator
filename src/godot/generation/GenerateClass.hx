@@ -475,17 +475,37 @@ class GenerateClass {
 					pos: Util.makeEmptyPosition(),
 					access: access,
 					kind: FFun({
-						args: method.arguments.maybeMap(function(godotArg): FunctionArg {
+						args: method.arguments.maybeMap(function(godotArg, index): FunctionArg {
+							final value = Util.getValue(godotArg);
+							var opt: Null<Bool> = null;
+
+							// Has default value that cannot be expressed in Haxe.
+							// Reflaxe/GDScript can use @:default_value to fill the defaults.
+							// Not sure how to handle other targets atm.
+							if(godotArg.default_value != null && value == null) opt = true;
+
+							final meta = [];
+							#if eval
+							if(godotArg.meta != null)
+								meta.push(Util.makeMetadataEntry(macro meta($v{godotArg.meta})));
+							if(godotArg.default_value != null)
+								meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
+
+							if(extraMetadata == null) extraMetadata = [];
+							for(m in meta) {
+								extraMetadata.push(Util.makeMetadataEntry(
+									macro argMeta(
+										$v{index}, $v{m.name}($a{m.params})
+									)
+								));
+							}
+							#end
 							return {
 								name: Util.processIdentifier(godotArg.name),
 								type: bindings.getType(godotArg.type),
-								meta: Util.makeMetadata(
-									#if eval
-									macro meta($v{godotArg.meta}),
-									macro default_value($v{godotArg.default_value}),
-									#end
-								).concat(nativeMeta),
-								value: Util.getValue(godotArg)
+								meta: meta,
+								opt: opt,
+								value: value
 							}
 						}),
 						ret: bindings.getReturnType(method.return_value?.type),

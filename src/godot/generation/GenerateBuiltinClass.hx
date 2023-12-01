@@ -49,7 +49,7 @@ class GenerateBuiltinClass {
 			final constructors = cls.constructors.denullify();
 
 			for(i in 1...constructors.length) {
-				final args = constructors[i].arguments.maybeMap(function(arg): FunctionArg {
+				final args = constructors[i].arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
 						type: bindings.getType(arg.type)
@@ -67,7 +67,7 @@ class GenerateBuiltinClass {
 			}
 
 			if(constructors.length > 0) {
-				final args = constructors[0].arguments.maybeMap(function(arg): FunctionArg {
+				final args = constructors[0].arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
 						type: bindings.getType(arg.type)
@@ -87,7 +87,7 @@ class GenerateBuiltinClass {
 
 		} else {
 			for(constructor in cls.constructors.denullify()) {
-				final args = constructor.arguments.maybeMap(function(arg): FunctionArg {
+				final args = constructor.arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
 						type: bindings.getType(arg.type)
@@ -151,7 +151,7 @@ class GenerateBuiltinClass {
 				pos: Util.makeEmptyPosition(),
 				access: fieldAccess,
 				kind: FFun({
-					args: method.arguments.maybeMap(function(arg): FunctionArg {
+					args: method.arguments.maybeMap(function(arg, _): FunctionArg {
 						return {
 							name: Util.processIdentifier(arg.name),
 							type: bindings.getType(arg.type),

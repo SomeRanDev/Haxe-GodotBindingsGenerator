@@ -235,7 +235,8 @@ class Printer {
 			+ (tpd.defaultType != null ? "=" + printComplexType(tpd.defaultType) : "");
 
 	public function printFunctionArg(arg:FunctionArg)
-		return (arg.opt ? "?" : "") + arg.name + opt(arg.type, printComplexType, ":") + opt(arg.value, printExpr, " = ");
+		return (arg.meta != null && arg.meta.length > 0 ? arg.meta.map(printMetadata).join(' ') + ' ' : "")
+			+ (arg.opt ? "?" : "") + arg.name + opt(arg.type, printComplexType, ":") + opt(arg.value, printExpr, " = ");
 
 	public function printFunction(func:Function, ?kind:FunctionKind) {
 		var skipParentheses = switch func.args {

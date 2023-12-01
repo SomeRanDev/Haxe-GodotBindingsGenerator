@@ -44,7 +44,7 @@ class GenerateUtilityFunction {
 			access: [APublic, AStatic, AExtern],
 			kind: FFun({
 				ret: bindings.getReturnType(utilityFunction.return_type),
-				args: utilityFunction.arguments.maybeMap(t -> ({
+				args: utilityFunction.arguments.maybeMap((t, _) -> ({
 					name: Util.processIdentifier(t.name),
 					type: bindings.getType(t.type)
 				} : FunctionArg))

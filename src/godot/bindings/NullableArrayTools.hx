@@ -1,13 +1,13 @@
 package godot.bindings;
 
-function maybeMap<T, U>(self: Null<Array<T>>, callback: (T) -> U): Array<U> {
+function maybeMap<T, U>(self: Null<Array<T>>, callback: (T, Int) -> U): Array<U> {
 	if(self == null) {
 		return [];
 	}
 
 	final result = [];
-	for(obj in self) {
-		result.push(callback(obj));
+	for(i in 0...self.length) {
+		result.push(callback(self[i], i));
 	}
 	return result;
 }
