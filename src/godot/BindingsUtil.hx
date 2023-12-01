@@ -16,9 +16,10 @@ class BindingsUtil {
 		https://github.com/godotengine/godot-cpp/blob/master/LICENSE.md
 	**/
 	public static function camelToSnake(name: String): String {
-		name = ~/(.)([A-Z][a-z]+)/.replace(name, "$1_$2");
-		name = ~/([a-z0-9])([A-Z])/.replace(name, "$1_$2");
-		return StringTools.replace(StringTools.replace(name, "2_D", "2D"), "3_D", "3D").toLowerCase();
+		name = ~/(.)([A-Z][a-z]+)/g.replace(name, "$1_$2");
+		name = ~/([a-z0-9])([A-Z])/g.replace(name, "$1_$2");
+		final result = StringTools.replace(StringTools.replace(name, "2_D", "2D"), "3_D", "3D").toLowerCase();
+		return result;
 	}
 
 	/**
