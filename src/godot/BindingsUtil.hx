@@ -153,4 +153,17 @@ class BindingsUtil {
 
 		return #if eval macro $v{v} #else null #end;
 	}
+
+	public static function generateInjectionExpr(haxeCode: String): Expr {
+		return {
+			expr: EMeta({
+				name: "-printer-inject",
+				pos: makeEmptyPosition()
+			}, {
+				expr: EConst(CIdent(haxeCode)),
+				pos: makeEmptyPosition()
+			}),
+			pos: makeEmptyPosition()
+		};
+	}
 }

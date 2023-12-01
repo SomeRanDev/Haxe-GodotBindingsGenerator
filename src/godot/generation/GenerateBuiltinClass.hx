@@ -9,6 +9,7 @@ import godot.generation.GenerateEnum;
 
 // ---
 
+using StringTools;
 using godot.bindings.NullableArrayTools;
 using godot.bindings.NullTools;
 
@@ -115,16 +116,7 @@ class GenerateBuiltinClass {
 				});
 			}
 			
-			final injectExpr = {
-				expr: EMeta({
-					name: "-printer-inject",
-					pos: Util.makeEmptyPosition()
-				}, {
-					expr: EConst(CIdent('${options.injectFunction}("${opInject}", ${args.map(a -> a.name).join(", ")})')),
-					pos: Util.makeEmptyPosition()
-				}),
-				pos: Util.makeEmptyPosition()
-			};
+			final injectExpr = Util.generateInjectionExpr('${options.injectFunction}("${opInject}", ${args.map(a -> a.name).join(", ")})');
 
 			fields.push({
 				name: opFieldName,
@@ -251,18 +243,74 @@ class GenerateBuiltinClass {
 		}
 
 		for(constant in cls.constants.denullify()) {
-			fields.push({
-				name: Util.processIdentifier(constant.name),
-				pos: Util.makeEmptyPosition(),
-				access: fieldAccess.concat([AStatic]),
-				kind: FVar(bindings.getType(constant.type), null),
-				meta: Util.makeMetadata(
+			final haxeExprString = switch(constant.type) {
+				case "bool" | "int" | "float": constant.value;
+				case "String": constant.value; // TODO: wrap in quotes??
+				case "Array" | "Variant": null;
+				case "Basis" | "Projection" | "Transform2D" | "Transform3D": null;
+				case _ if(constant.value.startsWith(constant.type)): {
+					if(constant.value.contains("inf")) {
+						null;
+					} else {
+						"new " + constant.value;
+					}
+				}
+				case _: null;
+			}
+
+			// GDScript constant (just extern)
+			{
+				final meta = Util.makeMetadata(
 					#if eval
-					macro value($v{constant.value})
+					macro value($v{constant.value}),
+					macro godot_bindings_gen_prepend($v{'#if gdscript'}),
 					#end
-				),
-				doc: Util.processDescription(constant.description)
-			});
+				);
+
+				// Do #else if possible to generate static getter
+				final append = haxeExprString != null ? '#else' : '#end';
+				meta.push(Util.makeMetadataEntry(#if eval macro godot_bindings_gen_append($v{append})) #end);
+
+				fields.push({
+					name: Util.processIdentifier(constant.name),
+					pos: Util.makeEmptyPosition(),
+					access: fieldAccess.concat([AStatic]),
+					kind: FVar(bindings.getType(constant.type), null),
+					meta: meta,
+					doc: Util.processDescription(constant.description)
+				});
+			}
+
+			// Other constant (use static getter if possible)
+			if(haxeExprString != null) {
+				fields.push({
+					name: Util.processIdentifier(constant.name),
+					pos: Util.makeEmptyPosition(),
+					access: fieldAccess.concat([AStatic]),
+					kind: FProp("get", "never", bindings.getType(constant.type)),
+					meta: Util.makeMetadata(
+						#if eval
+						macro value($v{constant.value})
+						#end
+					),
+					doc: Util.processDescription(constant.description)
+				});
+
+				fields.push({
+					name: "get_" + Util.processIdentifier(constant.name),
+					pos: Util.makeEmptyPosition(),
+					access: fieldAccess.concat([AStatic, AExtern, AInline]),
+					kind: FFun({
+						args: [],
+						expr: macro return ${Util.generateInjectionExpr(haxeExprString)}
+					}),
+					meta: Util.makeMetadata(
+						#if eval
+						macro godot_bindings_gen_append($v{'#end'})
+						#end
+					)
+				});
+			}
 		}
 
 		for(method in cls.methods.denullify()) {
