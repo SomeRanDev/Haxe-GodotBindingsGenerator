@@ -138,6 +138,28 @@ class GenerateBuiltinClass {
 			});
 		}
 
+		// Let's manually add some nice auto-conversions
+		//
+		// TODO: Could we make this less hardcoded? Maybe find all built-in
+		//       types with "one-argument" constructors and turn them into auto-conversions?
+		switch(cls.name) {
+			case "StringName" | "NodePath": {
+				final selfCt: TypePath = { name: cls.name, pack: bindings.getPack() };
+				fields.push({
+					name: "fromString",
+					access: [APublic, AStatic, AInline, AExtern],
+					kind: FFun({
+						args: [ { name: "s", type: macro : String } ],
+						ret: TPath(selfCt),
+						expr: macro return new $selfCt(s)
+					}),
+					pos: Util.makeEmptyPosition(),
+					meta: Util.makeMetadata(macro from)
+				});
+			}
+			case _:
+		}
+
 		return {
 			name: name,
 			pack: bindings.getPack(),
