@@ -88,19 +88,6 @@ class GenerateClass {
 	public static function generate(data: ExtensionApi, bindings: Bindings, result: Array<TypeDefinition>) {
 		final options = bindings.options;
 
-		// Figure out which classes should be Ref<T> or T*
-		final typeType = bindings.typeType;
-		if(options.cpp) {
-			typeType.set("Object", CppPointer);
-			for(cls in data.classes) {
-				if(StringTools.endsWith(cls.name, "*")) {
-					typeType.set(cls.name, None);
-					continue;
-				}
-				typeType.set(cls.name, cls.is_refcounted ? GodotRef : CppPointer);
-			}
-		}
-
 		// Figure out which classes are Singletons
 		singletons = [];
 		if(data.singletons != null) {
@@ -517,7 +504,7 @@ class GenerateClass {
 							#end
 							return {
 								name: Util.processIdentifier(godotArg.name),
-								type: bindings.getType(godotArg.type),
+								type: bindings.getArgumentType(godotArg.type),
 								meta: meta,
 								opt: opt,
 								value: value

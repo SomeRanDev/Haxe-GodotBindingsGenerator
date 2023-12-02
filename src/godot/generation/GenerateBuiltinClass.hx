@@ -114,7 +114,7 @@ class GenerateBuiltinClass {
 			if(op.right_type != null) {
 				args.push({
 					name: "other",
-					type: bindings.getType(op.right_type)
+					type: bindings.getArgumentType(op.right_type)
 				});
 			}
 			
@@ -219,7 +219,7 @@ class GenerateBuiltinClass {
 				final args = constructors[i].arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
-						type: bindings.getType(arg.type)
+						type: bindings.getArgumentType(arg.type)
 					}
 				});
 
@@ -237,7 +237,7 @@ class GenerateBuiltinClass {
 				final args = constructors[0].arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
-						type: bindings.getType(arg.type)
+						type: bindings.getArgumentType(arg.type)
 					}
 				});
 
@@ -256,7 +256,7 @@ class GenerateBuiltinClass {
 				final args = constructor.arguments.maybeMap(function(arg, _): FunctionArg {
 					return {
 						name: Util.processIdentifier(arg.name),
-						type: bindings.getType(arg.type)
+						type: bindings.getArgumentType(arg.type)
 					}
 				});
 
@@ -375,7 +375,7 @@ class GenerateBuiltinClass {
 					args: method.arguments.maybeMap(function(arg, _): FunctionArg {
 						return {
 							name: Util.processIdentifier(arg.name),
-							type: bindings.getType(arg.type),
+							type: bindings.getArgumentType(arg.type),
 							opt: arg.default_value != null,
 							meta: Util.makeMetadata(
 								#if eval
@@ -398,17 +398,6 @@ class GenerateBuiltinClass {
 				doc: Util.processDescription(method.description)
 			});
 		}
-
-		/**
-			TODO: operators
-
-			operators: MaybeArray<{
-				name: String,
-				right_type: Null<String>,
-				return_type: String,
-				description: Null<String>
-			}>,
-		**/
 
 		final meta = Util.makeMetadata(
 			#if eval

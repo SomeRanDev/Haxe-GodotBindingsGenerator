@@ -129,12 +129,36 @@ class Bindings {
 		Bindings.fileComment = options?.fileComment; // Use this later in `output` static function.
 	}
 
+	static function isPrimitive(typeName: String) {
+		return [
+			"Nil", "void", "bool", "real_t", "float", "double", "int",
+			"int8_t", "uint8_t", "int16_t", "uint16_t",
+			"int32_t", "int64_t", "uint32_t", "uint64_t",
+		].contains(typeName);
+	}
+
 	/**
 		Generates the `TypeDefinition`s.
 	**/
 	function make(): Array<TypeDefinition> {
 		final data = loadData(extensionJsonPath);
 		final result: Array<TypeDefinition> = [];
+
+		// Figure out which classes should be Ref<T> or T*
+		if(options.cpp) {
+			typeType.set("Object", CppPointer);
+			for(cls in data.classes) {
+				if(StringTools.endsWith(cls.name, "*")) {
+					typeType.set(cls.name, None);
+					continue;
+				}
+				typeType.set(cls.name, cls.is_refcounted ? GodotRef : CppPointer);
+			}
+
+			for(builtin in data.builtin_classes) {
+				typeType.set(builtin.name, isPrimitive(builtin.name) ? Primitive : Builtin);
+			}
+		}
 
 		// Generate bindings for "utility_functions" and "global_constants"
 		result.push(makeClassTypeDefinition("Godot", (
@@ -252,5 +276,27 @@ class Bindings {
 	**/
 	public function getReturnType(typeString: Null<String>): ComplexType {
 		return typeString == null ? (macro : Void) : getType(typeString);
+	}
+
+	/**
+		Compile type for function argument.
+	**/
+	public function getArgumentType(typeString: String): ComplexType {
+		final result = getType(typeString);
+
+		if(options.cpp && typeType.exists(typeString)) {
+			switch(typeType.get(typeString)) {
+				case GodotRef | Builtin: {
+					return TPath({
+						pack: [],
+						name: "ConstRef",
+						params: [ TPType(result) ]
+					});
+				}
+				case _:
+			}
+		}
+
+		return result;
 	}
 }
