@@ -454,7 +454,7 @@ class GenerateClass {
 			};
 
 			var preimplName = name;
-			if(setterType != null) {
+			if(!isSingleton && setterType != null) {
 				name += "_impl";
 			}
 
