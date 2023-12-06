@@ -490,14 +490,29 @@ class GenerateClass {
 							#if eval
 							if(godotArg.meta != null)
 								meta.push(Util.makeMetadataEntry(macro meta($v{godotArg.meta})));
-							if(godotArg.default_value != null)
+							if(godotArg.default_value != null) {
 								meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
+
+								meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{Util.valueStringToGDScript(godotArg.default_value, godotArg.type)})));
+								if(options.cpp) {
+									final cppCode = Util.valueStringToCpp(godotArg.default_value, godotArg.type);
+									final argExprs = cppCode == null ? [] : [macro $v{cppCode}];
+									meta.push(Util.makeMetadataEntry(macro "#if cxx :noNullPad"($a{argExprs})));
+								}
+							}
 
 							if(extraMetadata == null) extraMetadata = [];
 							for(m in meta) {
+								final r = ~/^#if ([a-zA-Z0-9]+) (.*)$/;
+								var argMetaName = ":argMeta";
+								var paramMetaName = m.name;
+								if(r.match(paramMetaName)) {
+									argMetaName = '#if ${r.matched(1)} $argMetaName';
+									paramMetaName = r.matched(2);
+								}
 								extraMetadata.push(Util.makeMetadataEntry(
-									macro argMeta(
-										$v{index}, $v{m.name}($a{m.params})
+									macro $v{argMetaName}(
+										$v{index}, $v{paramMetaName}($a{m.params})
 									)
 								));
 							}

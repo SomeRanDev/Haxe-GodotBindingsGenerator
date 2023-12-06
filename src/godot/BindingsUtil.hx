@@ -3,6 +3,8 @@ package godot;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 
+using StringTools;
+
 /**
 	A collection of pure utility functions.
 **/
@@ -165,5 +167,30 @@ class BindingsUtil {
 			}),
 			pos: makeEmptyPosition()
 		};
+	}
+
+	/**
+		Converts a "value" `String` to valid GDScript.
+	**/
+	public static function valueStringToGDScript(value: String, stringType: String) {
+		// Normally this is generated as `Array[TYPE]([])` for some reason....
+		if(stringType.startsWith("typedarray::")) return "[]";
+
+		// Return the value normally otherwise.
+		return value;
+	}
+
+	/**
+		Converts a "value" `String` to valid C++.
+
+		If cannot be converted to C++, `null` is returned.
+	**/
+	public static function valueStringToCpp(value: String, stringType: String): Null<String> {
+		final numRegex = ~/^\d+$/;
+		if(numRegex.match(value) && (stringType == "int" || stringType == "float")) {
+			return value;
+		}
+
+		return null;
 	}
 }
