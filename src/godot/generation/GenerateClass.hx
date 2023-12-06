@@ -123,7 +123,7 @@ class GenerateClass {
 			result.push(typeDefinition);
 
 			for(e in cls.enums.denullify()) {
-				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(cls.name)));
+				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(cls.name), "godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"));
 			}
 		}
 	}

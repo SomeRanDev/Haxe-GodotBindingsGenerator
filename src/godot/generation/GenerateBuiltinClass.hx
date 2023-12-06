@@ -36,7 +36,7 @@ class GenerateBuiltinClass {
 			bindings.builtinClasses.set(builtin.name, builtin);
 
 			for(e in builtin.enums.denullify()) {
-				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(builtin.name)));
+				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(builtin.name), "godot_cpp/variant/" + Util.camelToSnake(builtin.name) + ".hpp"));
 			}
 		}
 	}

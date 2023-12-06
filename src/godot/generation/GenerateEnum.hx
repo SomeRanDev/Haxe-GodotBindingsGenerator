@@ -22,7 +22,9 @@ class GenerateEnum {
 	/**
 		Generates the `TypeDefinition` from a "global_enums" object from `extension_api.json`.
 	**/
-	public static function generateGlobalEnum(globalEnum: AnyEnum, bindings: Bindings, wrapperClassName: Null<String> = null): TypeDefinition {
+	public static function generateGlobalEnum(
+		globalEnum: AnyEnum, bindings: Bindings, wrapperClassName: Null<String> = null, wrapperClassInclude: Null<String> = null
+	): TypeDefinition {
 		final options = bindings.options;
 
 		final meta = Util.makeMetadata(
@@ -51,7 +53,8 @@ class GenerateEnum {
 
 		if(options.cpp) {
 			#if eval
-			meta.push(Util.makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}("godot_cpp/classes/global_constants_binds.hpp")));
+			final includePath = wrapperClassInclude ?? "godot_cpp/classes/global_constants.hpp";
+			meta.push(Util.makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}($v{includePath})));
 			meta.push(Util.makeMetadataEntry(macro $v{'#if ${options.cppDefine} :native'}($v{
 				"godot::" + (wrapperClassName != null ? (wrapperClassName + "::") : "") + globalEnum.name
 			})));
