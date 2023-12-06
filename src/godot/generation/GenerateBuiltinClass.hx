@@ -418,8 +418,14 @@ class GenerateBuiltinClass {
 			#end
 		}
 
-		final nativeName = Util.processTypeName(cls.name);
+		var nativeName = Util.processTypeName(cls.name);
 		final fieldsClassName = nativeName + "_Fields";
+
+		// Remove "Godot" prefix for String and Array @:nativeName
+		switch(nativeName) {
+			case "GodotArray" | "GodotString": nativeName = nativeName.substr("Godot".length);
+			case _:
+		}
 
 		#if eval
 		meta.push(Util.makeMetadataEntry(macro nativeName($v{nativeName})));
