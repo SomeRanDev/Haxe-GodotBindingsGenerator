@@ -118,7 +118,7 @@ class GenerateBuiltinClass {
 				});
 			}
 			
-			final injectExpr = Util.generateInjectionExpr('${options.injectFunction}("${opInject}", ${args.map(a -> a.name).join(", ")})');
+			final injectExpr = Util.generateInjectionExpr('${options.injectFunction}("(${opInject})", ${args.map(a -> a.name).join(", ")})');
 
 			fields.push({
 				name: opFieldName,
