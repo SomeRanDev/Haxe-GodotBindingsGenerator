@@ -4,6 +4,7 @@ import haxe.macro.Expr;
 
 import godot.BindingsUtil as Util;
 import godot.extension_api.Class as GodotClass;
+import godot.extension_api.Class.ClassMethod;
 import godot.generation.GenerateEnum;
 
 // ---
@@ -82,6 +83,8 @@ class GenerateClass {
 		return hierarchyData;
 	}
 
+	static var methodsMap: Map<String, Map<String, { method: ClassMethod, inParentClass: Bool }>> = [];
+
 	/**
 		Generates and adds all type definitions from `classes`.
 	**/
@@ -96,7 +99,34 @@ class GenerateClass {
 			}
 		}
 
+		// Get reference to classes
+		final classes: Map<String, GodotClass> = [];
 		for(cls in data.classes) {
+			classes.set(cls.name, cls);
+		}
+
+		// Preprocessing...
+		for(cls in data.classes) {
+			// Make map of all methods in all classes
+			final methodMap: Map<String, { method: ClassMethod, inParentClass: Bool }> = [];
+			var currentClass = cls;
+			var inParentClass = false;
+			while(currentClass != null) {
+				for(method in currentClass.methods.denullify()) {
+					// Do not set method if child method already exists
+					if(!methodMap.exists(method.name)) {
+						methodMap.set(method.name, { method: method, inParentClass: inParentClass });
+					}
+				}
+				currentClass = {
+					final i = currentClass.inherits;
+					i == null ? null : classes.get(i);
+				}
+				inParentClass = true;
+			}
+			methodsMap.set(cls.name, methodMap);
+
+			// Add to global enums map
 			for(e in cls.enums.denullify()) {
 				bindings.globalEnums.set(cls.name + "_" + e.name, e);
 			}
@@ -157,6 +187,7 @@ class GenerateClass {
 		final getterExpectedType: Map<String, { name: String, type: String }> = [];
 		final setterExpectedType: Map<String, { name: String, type: String }> = [];
 		final getterSetterFound: Map<String, { sourceProperty: String, exists: Bool }> = [];
+		final extraPropertyMeta: Map<String, Metadata> = [];
 		for(property in cls.properties.denullify()) {
 			if(property.getter != null) {
 				getterExpectedType.set(property.getter, property);
@@ -166,6 +197,8 @@ class GenerateClass {
 				setterExpectedType.set(property.setter, property);
 				getterSetterFound.set(property.setter, { sourceProperty: property.name, exists: false });
 			}
+
+			extraPropertyMeta.set(property.name, []);
 		}
 
 		// Let's ignore properties who don't have matching types with their getters/setters for the time being.
@@ -178,28 +211,40 @@ class GenerateClass {
 			// else if(p == "StringName") "String";
 			return p;
 		}
-		for(method in cls.methods.denullify()) {
-			final getterSetterData = getterSetterFound.get(method.name);
-			if(getterSetterData != null) {
-				getterSetterData.exists = true;
-			}
 
-			if(getterExpectedType.exists(method.name)) {
-				final property = getterExpectedType.get(method.name).trustMe();
-				if(method.return_value == null || prop(method.return_value.type) != prop(property.type)) {
-					#if godot_api_bindings_debug
-					Sys.println('Property and getter types do not match.\n${cls.name} { func ${method.name}(...) -> ${method.return_value.type}, prop: ${property.name}: ${property.type} }');
-					#end
-					ignoreProperties.set(property.name, true);
+		final mappedMethods = methodsMap.get(cls.name);
+		if(mappedMethods != null) {
+			for(methodName => methodData in mappedMethods /* cls.methods.denullify() */) {
+				final method = methodData.method;
+				final methodName = method.name;
+				final getterSetterData = getterSetterFound.get(methodName);
+				if(getterSetterData != null) {
+					getterSetterData.exists = true;
 				}
-			} else if(setterExpectedType.exists(method.name)) {
-				final property = setterExpectedType.get(method.name).trustMe();
-				final args = method.arguments.denullify();
-				if(args.length == 0 || prop(args[args.length - 1].type) != prop(property.type)) {
-					#if godot_api_bindings_debug
-					Sys.println('Property and setter types do not match.\n${cls.name} { func ${method.name}(..., v: ${args[args.length - 1].type}), prop: ${property.name}: ${property.type} }');
-					#end
-					ignoreProperties.set(property.name, true);
+
+				if(getterExpectedType.exists(methodName)) {
+					final property = getterExpectedType.get(methodName).trustMe();
+					if(method.return_value == null || prop(method.return_value.type) != prop(property.type)) {
+						#if godot_api_bindings_debug
+						Sys.println('Property and getter types do not match.\n${cls.name} { func ${methodName}(...) -> ${method.return_value.type}, prop: ${property.name}: ${property.type} }');
+						#end
+						ignoreProperties.set(property.name, true);
+					} else if(methodData.inParentClass && methodName != "get_" + property.name) {
+						#if eval
+						extraPropertyMeta.get(property.name).push(Util.makeMetadataEntry(
+							macro godot_bindings_gen_prepend($v{'\tpublic extern inline function get_${property.name}() { return ${methodName}(); }'})
+						));
+						#end
+					}
+				} else if(setterExpectedType.exists(methodName)) {
+					final property = setterExpectedType.get(methodName).trustMe();
+					final args = method.arguments.denullify();
+					if(args.length == 0 || prop(args[args.length - 1].type) != prop(property.type)) {
+						#if godot_api_bindings_debug
+						Sys.println('Property and setter types do not match.\n${cls.name} { func ${methodName}(..., v: ${args[args.length - 1].type}), prop: ${property.name}: ${property.type} }');
+						#end
+						ignoreProperties.set(property.name, true);
+					}
 				}
 			}
 		}
@@ -267,10 +312,11 @@ class GenerateClass {
 				}
 			}
 
+			var propertyMeta = extraPropertyMeta.get(property.name);
+
 			// Setup property if we're not ignoring it.
 			if(!ignoreProperty) {
 				// For the "special indexed" properties, let's generate their own set/get inline functions.
-				var propertyMeta = [];
 				if(isSpecialIndexedProp) {
 					final typeString = haxe.macro.ComplexTypeTools.toString(bindings.getType(property.type));
 
@@ -315,11 +361,11 @@ class GenerateClass {
 		return v;
 	}\n';
 
-					propertyMeta = Util.makeMetadata(
-						#if eval
-						macro godot_bindings_gen_prepend($v{'$getter\n$setter'}),
-						#end
-					);
+					#if eval
+					propertyMeta.push(Util.makeMetadataEntry(
+						macro godot_bindings_gen_prepend($v{'$getter\n$setter'})
+					));
+					#end
 				}
 
 				// @:reassignOnSubfieldEdit
