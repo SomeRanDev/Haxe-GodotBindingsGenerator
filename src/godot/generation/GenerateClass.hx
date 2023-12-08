@@ -109,7 +109,7 @@ class GenerateClass {
 		for(cls in data.classes) {
 			// Make map of all methods in all classes
 			final methodMap: Map<String, { method: ClassMethod, inParentClass: Bool }> = [];
-			var currentClass = cls;
+			var currentClass: Null<GodotClass> = cls;
 			var inParentClass = false;
 			while(currentClass != null) {
 				for(method in currentClass.methods.denullify()) {
@@ -312,7 +312,7 @@ class GenerateClass {
 				}
 			}
 
-			var propertyMeta = extraPropertyMeta.get(property.name);
+			var propertyMeta = extraPropertyMeta.get(property.name) ?? [];
 
 			// Setup property if we're not ignoring it.
 			if(!ignoreProperty) {
@@ -405,7 +405,7 @@ class GenerateClass {
 
 							validatedROSEBuiltinClasses.set(property.type, margs);
 						}
-						
+
 						propertyMeta.push(Util.makeMetadataEntry(
 							macro reassignOnSubfieldEdit($a{["set_" + name + "_impl"].concat(margs).map(m -> macro $i{m})})
 						));
