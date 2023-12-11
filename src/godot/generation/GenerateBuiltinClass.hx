@@ -308,13 +308,32 @@ class GenerateBuiltinClass {
 			}
 		}
 
+		final isBasis = cls.name == "Basis";
 		for(member in cls.members.denullify()) {
+			// Handle basis x/y/z for C++
+			final meta = if(bindings.options.cpp && isBasis) {
+				final name = switch(member.name) {
+					case "x": "get_column(0)";
+					case "y": "get_column(1)";
+					case "z": "get_column(2)";
+					case _: null;
+				}
+
+				name == null ? [] : Util.makeMetadata(
+					#if eval
+					macro $v{'#if ${bindings.options.cppDefine} :nativeName'}($v{name})
+					#end
+				);
+			} else {
+				[];
+			}
+
 			fields.push({
 				name: Util.processIdentifier(member.name),
 				pos: Util.makeEmptyPosition(),
 				access: fieldAccess,
 				kind: FVar(bindings.getType(member.type), null),
-				meta: [],
+				meta: meta,
 				doc: Util.processDescription(member.description)
 			});
 		}
