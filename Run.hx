@@ -15,11 +15,17 @@ function main() {
 		true;
 	} else false;
 
-	// Check for --cpp
+	// Check for --nativeName
 	final nativeMeta = if(args.contains("--nativeName")) {
 		args.remove("--nativeName");
 		":nativeName";
 	} else ":native";
+
+	// Check for --godotVariantType
+	final variantType = if(args.contains("--godotVariantType")) {
+		args.remove("--godotVariantType");
+		macro : GodotVariant;
+	} else macro : Dynamic;
 
 	final cwd = switch(args) {
 		case ["help", _]: {
@@ -73,7 +79,8 @@ function main() {
 	// Generate and output type definitions
 	final typeDefinitions = godot.Bindings.generate(jsonPath, {
 		cpp: isCpp,
-		nativeNameMeta: nativeMeta
+		nativeNameMeta: nativeMeta,
+		godotVariantType: variantType
 	});
 	godot.Bindings.output(outputDir, typeDefinitions);
 

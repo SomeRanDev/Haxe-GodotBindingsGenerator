@@ -8,7 +8,7 @@ class Options {
 	/**
 		The type used for Godot's variant type.
 	**/
-	public var godotVariantType(default, null): haxe.macro.Expr.ComplexType = macro : GodotVariant;
+	public var godotVariantType(default, null): haxe.macro.Expr.ComplexType = macro : Dynamic;
 
 	/**
 		The package all the binding modules will generated for.
