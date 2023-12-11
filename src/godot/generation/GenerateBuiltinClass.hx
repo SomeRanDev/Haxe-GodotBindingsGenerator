@@ -60,6 +60,29 @@ class GenerateBuiltinClass {
 
 		final fields: Array<Field> = [];
 
+		if(name == "Dictionary") {
+			final injectGet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}])", this, key)');
+			final injectSet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}] = {2})", this, key, value)');
+			final variantType = bindings.options.godotVariantType;
+
+			final arrayAccessFields = macro class {
+				@:arrayAccess
+				public inline function arrayAccessGet(key:String): $variantType {
+					return $injectGet;
+				}
+
+				@:arrayAccess
+				public inline function arrayAccessSet(k:String, v: $variantType): $variantType {
+					$injectSet;
+					return v;
+				}
+			}
+
+			for(f in arrayAccessFields.fields) {
+				fields.push(f);
+			}
+		}
+
 		final nameCounter: Map<String, Int> = [];
 		for(op in cls.operators.denullify()) {
 			final opExpr = switch(op.name) {
