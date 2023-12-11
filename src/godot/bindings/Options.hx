@@ -8,7 +8,7 @@ class Options {
 	/**
 		The type used for Godot's variant type.
 	**/
-	public var godotVariantType(default, null): haxe.macro.Expr.ComplexType = macro : Dynamic;
+	public var godotVariantType(default, null): haxe.macro.Expr.ComplexType = macro : GodotVariant;
 
 	/**
 		The package all the binding modules will generated for.
@@ -84,7 +84,7 @@ https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 		The type used to represent C++ pointers in `--cpp` mode.
 	**/
 	public var ptrType(default, null): { name: String, pack: Array<String> } = {
-		name: "GodotPtr",
-		pack: []
+		name: "Ptr",
+		pack: ["cxx"]
 	}
 }
