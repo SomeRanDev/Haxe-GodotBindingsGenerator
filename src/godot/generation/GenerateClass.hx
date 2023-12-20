@@ -164,10 +164,23 @@ class GenerateClass {
 	static function generateClass(cls: GodotClass, bindings: Bindings): TypeDefinition {
 		final options = bindings.options;
 
-		final fields = [];
+		final fields: Array<Field> = [];
 		final fieldAccess = [APublic];
 
 		final isSingleton = singletons.exists(cls.name);
+
+		// Assume every class has a no-argument constructor.
+		if(!isSingleton) {
+			fields.push({
+				name: "new",
+				pos: Util.makeEmptyPosition(),
+				access: fieldAccess,
+				kind: FFun({
+					args: []
+				}),
+				meta: []
+			});
+		}
 
 		for(constant in cls.constants.denullify()) {
 			fields.push({
