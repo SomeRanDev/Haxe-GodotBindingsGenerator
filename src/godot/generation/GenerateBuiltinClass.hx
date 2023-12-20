@@ -190,7 +190,7 @@ class GenerateBuiltinClass {
 			fields: fields,
 			kind: TDAbstract(fieldsClassCt),
 			isExtern: true,
-			meta: Util.makeMetadata(macro forward, macro ":forward.new", macro forwardStatics),
+			meta: Util.makeMetadata(macro forward, macro ":forward.new", macro forwardStatics, macro copyType),
 			doc: Util.processDescription(cls.description)
 		};
 	}
@@ -448,6 +448,7 @@ class GenerateBuiltinClass {
 			macro indexing_return_type($v{cls.indexing_return_type}),
 			macro is_keyed($v{cls.is_keyed}),
 			macro has_destructor($v{cls.has_destructor}),
+			macro copyType,
 			macro avoid_temporaries // TODO: should this be optional?
 			#end
 		);
