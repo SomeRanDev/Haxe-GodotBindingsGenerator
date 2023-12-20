@@ -449,6 +449,7 @@ class GenerateBuiltinClass {
 			macro is_keyed($v{cls.is_keyed}),
 			macro has_destructor($v{cls.has_destructor}),
 			macro copyType,
+			macro noCompletion,
 			macro avoid_temporaries // TODO: should this be optional?
 			#end
 		);
