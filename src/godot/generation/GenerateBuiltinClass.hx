@@ -42,6 +42,16 @@ class GenerateBuiltinClass {
 	}
 
 	/**
+		Get the key type for array access.
+	**/
+	static function indexKeyType(name: String) {
+		return switch(name) {
+			case "Dictionary": macro : String;
+			case _: macro : Int;
+		}
+	}
+
+	/**
 		Generates the abstract wrapper containing the operator overloads.
 	**/
 	static function generateBuiltinAbstract(fieldsTypeDef: TypeDefinition, cls: BuiltinClass, bindings: Bindings): TypeDefinition {
@@ -60,19 +70,21 @@ class GenerateBuiltinClass {
 
 		final fields: Array<Field> = [];
 
-		if(name == "Dictionary") {
+		if(cls.indexing_return_type != null) {
+			final valueType = bindings.getType(cls.indexing_return_type);
+			final keyType = indexKeyType(name);
+
 			final injectGet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}])", this, key)');
 			final injectSet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}] = {2})", this, key, value)');
-			final variantType = bindings.options.godotVariantType;
 
 			final arrayAccessFields = macro class {
 				@:arrayAccess
-				public inline function arrayAccessGet(key:String): $variantType {
+				public inline function arrayAccessGet(key: $keyType): $valueType {
 					return $injectGet;
 				}
 
 				@:arrayAccess
-				public inline function arrayAccessSet(k:String, v: $variantType): $variantType {
+				public inline function arrayAccessSet(k: $keyType, v: $valueType): $valueType {
 					$injectSet;
 					return v;
 				}
