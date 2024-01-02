@@ -29,6 +29,8 @@ import sys.io.File;
 
 // ---
 
+using StringTools;
+
 using godot.bindings.NullableArrayTools;
 using godot.bindings.NullTools;
 
@@ -292,11 +294,44 @@ class Bindings {
 						name: "ConstRef",
 						params: [ TPType(result) ]
 					});
+	/**
+		Given a Godot argument JSON object (with "default_value" and "type" Strings),
+		returns the default value expression for Haxe or null.
+	**/
+	public function getValue(data: { default_value: Null<String>, type: String }): Null<Expr> {
+		if(data.default_value == null) {
+			return null;
+		}
+
+		if(data.default_value == "null") {
+			return macro null;
+		}
+
+		if(data.type.startsWith("enum::")) {
+			final key = data.type.substr("enum::".length).replace(".", "_");
+
+			final defValue = Std.parseInt(data.default_value);
+			final enumData = globalEnums[key];
+			if(enumData != null) {
+				for(v in enumData.values) {
+					if(v.value == defValue) {
+						final fields = haxe.macro.ComplexTypeTools.toString(getType(data.type)).split(".");
+						fields.push(v.name);
+
+						return #if eval macro ${haxe.macro.MacroStringTools.toFieldExpr(fields)} #else null #end;
+					}
 				}
-				case _:
 			}
 		}
 
-		return result;
+		final v: Dynamic = switch(data.type) {
+			case "bool": data.default_value == "true";
+			case "int": Std.parseInt(data.default_value);
+			case "float": Std.parseFloat(data.default_value);
+			case "String": ~/$"(.*)"^/.replace(data.default_value, "$1");
+			case _: return null;
+		}
+
+		return #if eval macro $v{v} #else null #end;
 	}
 }

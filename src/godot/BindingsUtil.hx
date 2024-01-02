@@ -132,30 +132,6 @@ class BindingsUtil {
 		return makeMetadata(e)[0];
 	}
 
-	/**
-		Given a Godot argument JSON object (with "default_value" and "type" Strings),
-		returns the default value expression for Haxe or null.
-	**/
-	public static function getValue(data: { default_value: Null<String>, type: String }): Null<Expr> {
-		if(data.default_value == null) {
-			return null;
-		}
-
-		if(data.default_value == "null") {
-			return macro null;
-		}
-
-		final v: Dynamic = switch(data.type) {
-			case "bool": data.default_value == "true";
-			case "int": Std.parseInt(data.default_value);
-			case "float": Std.parseFloat(data.default_value);
-			case "String": ~/$"(.*)"^/.replace(data.default_value, "$1");
-			case _: return null;
-		}
-
-		return #if eval macro $v{v} #else null #end;
-	}
-
 	public static function generateInjectionExpr(haxeCode: String): Expr {
 		return {
 			expr: EMeta({

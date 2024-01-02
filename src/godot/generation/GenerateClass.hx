@@ -537,7 +537,7 @@ class GenerateClass {
 					access: access,
 					kind: FFun({
 						args: method.arguments.maybeMap(function(godotArg, index): FunctionArg {
-							final value = Util.getValue(godotArg);
+							final value = bindings.getValue(godotArg);
 							var opt: Null<Bool> = null;
 
 							// Has default value that cannot be expressed in Haxe.
@@ -597,16 +597,72 @@ class GenerateClass {
 				// C++ extern inline
 
 				if(options.cpp) {
-					var i = 0;
 					final margs = method.arguments.denullify();
-					final args = margs.map(a -> "{" + (i++) + "}").join(", ");
-					final call = 'godot::${cls.name}::get_singleton()->${originalName}($args)';
-					final totalArgs = {
-						#if eval
-						[macro $v{call}].concat(margs.map(a -> macro $i{Util.processIdentifier(a.name)}))
-						#else
-						[]
-						#end;
+
+					var initialStartIndex = -1;
+					for(i in 0...margs.length) {
+						if(margs[i].default_value != null && bindings.getValue(margs[i]) == null) {
+							initialStartIndex = i;
+							break;
+						}
+					}
+
+					final argumentCombos = [];
+
+					function addCombo(startIndex: Int) {
+						var i = 0;
+						final margsSlice = startIndex == -1 ? {
+							if(initialStartIndex == -1) {
+								margs;
+							} else {
+								margs.slice(0, initialStartIndex);
+							}
+						} : margs.slice(0, startIndex + 1);
+						final args = margsSlice.map(a -> "{" + (i++) + "}").join(", ");
+						final call = 'godot::${cls.name}::get_singleton()->${originalName}($args)';
+						final totalArgs = {
+							#if eval
+							[macro $v{call}].concat(margsSlice.map(a -> macro $i{Util.processIdentifier(a.name)}))
+							#else
+							[]
+							#end;
+						}
+
+						if(startIndex == -1) {
+							#if eval
+							argumentCombos.unshift(macro return untyped __cpp__($a{totalArgs}));
+							#end
+						} else {
+							#if eval
+							argumentCombos.unshift(macro if(${totalArgs[totalArgs.length - 1]} != null) return untyped __cpp__($a{totalArgs}));
+							#end
+						}
+					}
+
+					addCombo(-1);
+					if(initialStartIndex != -1) {
+						for(i in initialStartIndex...margs.length) {
+							addCombo(i);
+						}
+					}
+					
+					final resultExpr = if(argumentCombos.length == 1) {
+						argumentCombos[0];
+					} else {
+						var result = argumentCombos[argumentCombos.length - 1];
+						for(i in 1...argumentCombos.length) {
+							final e = argumentCombos[argumentCombos.length - i - 1];
+							switch(e.expr) {
+								case EIf(econd, eif, null): {
+									result = {
+										expr: EIf(econd, eif, result),
+										pos: e.pos
+									};
+								}
+								case _: throw "Impossible";
+							}
+						}
+						result;
 					}
 					
 					addField(
@@ -620,7 +676,7 @@ class GenerateClass {
 						[AStatic, AExtern, AInline],
 						#if eval macro {
 							@:include($v{"godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"})
-							return untyped __cpp__($a{totalArgs});
+							$resultExpr;
 						} #else null #end
 					);
 				}
