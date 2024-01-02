@@ -291,13 +291,21 @@ class Bindings {
 		final result = getType(typeString);
 
 		if(options.cpp && typeType.exists(typeString)) {
-			switch(typeType.get(typeString)) {
-				case GodotRef | Builtin: {
-					return TPath({
-						pack: [],
-						name: "ConstRef",
-						params: [ TPType(result) ]
-					});
+			// switch(typeType.get(typeString)) {
+			// 	case GodotRef | Builtin: {
+			// 		return TPath({
+			// 			pack: ["cxx"],
+			// 			name: "ConstRef",
+			// 			params: [ TPType(result) ]
+			// 		});
+			// 	}
+			// 	case _:
+			// }
+		}
+
+		return result;
+	}
+
 	/**
 		Given a Godot argument JSON object (with "default_value" and "type" Strings),
 		returns the default value expression for Haxe or null.
