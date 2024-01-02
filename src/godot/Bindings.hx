@@ -19,9 +19,13 @@ import godot.generation.GenerateGlobalConstant;
 import haxe.Json;
 import haxe.io.Path;
 
+import haxe.macro.ComplexTypeTools;
 import haxe.macro.Context;
 import haxe.macro.Expr;
-#if (haxe >= version("4.3.2")) import haxe.macro.Expr.AbstractFlag; #end
+#if (haxe >= version("4.3.2"))
+import haxe.macro.Expr.AbstractFlag;
+#end
+import haxe.macro.MacroStringTools;
 import godot.haxestd.Printer;
 
 import sys.FileSystem;
@@ -309,16 +313,15 @@ class Bindings {
 
 		if(data.type.startsWith("enum::")) {
 			final key = data.type.substr("enum::".length).replace(".", "_");
-
-			final defValue = Std.parseInt(data.default_value);
+			final caseIndex = Std.parseInt(data.default_value);
 			final enumData = globalEnums[key];
 			if(enumData != null) {
 				for(v in enumData.values) {
-					if(v.value == defValue) {
-						final fields = haxe.macro.ComplexTypeTools.toString(getType(data.type)).split(".");
+					if(v.value == caseIndex) {
+						final fields = ComplexTypeTools.toString(getType(data.type)).split(".");
 						fields.push(v.name);
-
-						return #if eval macro ${haxe.macro.MacroStringTools.toFieldExpr(fields)} #else null #end;
+						final chainFields = MacroStringTools.toFieldExpr(fields);
+						return #if eval macro $chainFields #else null #end;
 					}
 				}
 			}
