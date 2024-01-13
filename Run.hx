@@ -58,8 +58,8 @@ function main() {
 
 	// Check output directory
 	if(outputDir == null) {
-		Sys.println("No output directory defined, using \"godot_bindings/\".");
-		outputDir = "godot_bindings";
+		Sys.println("No output directory defined, using \"godot/\".");
+		outputDir = "godot";
 	}
 
 	// Check json path
