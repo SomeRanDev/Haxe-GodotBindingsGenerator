@@ -62,6 +62,22 @@ https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator";
 	public var staticFunctionConstructors(default, null): Bool = false;
 
 	/**
+		The type used to represent Godot's `Array`.
+	**/
+	public var arrayType(default, null): { name: String, pack: Array<String> } = {
+		name: "GodotArray",
+		pack: []
+	}
+
+	/**
+		The type used to represent Godot's `TypedArray`.
+	**/
+	public var typedArrayType(default, null): { name: String, pack: Array<String> } = {
+		name: "Array",
+		pack: []
+	}
+
+	/**
 		If `true`, the bindings will contain `@:include`s for godot-cpp and wrap
 		parameters/returns with representation for pointers and Godot's `Ref`. 
 	**/

@@ -214,8 +214,8 @@ class Bindings {
 		final typearrPrefix = "typedarray::";
 		if(StringTools.startsWith(typeString, typearrPrefix)) {
 			return TPath({
-				pack: [],
-				name: "Array",//"GodotArray",
+				pack: options.typedArrayType.pack,
+				name: options.typedArrayType.name,
 				params: [
 					TPType(getType(typeString.substring(typearrPrefix.length)))
 				]
@@ -267,7 +267,11 @@ class Bindings {
 			case "int": macro : Int;
 			case "float": macro : Float;
 			case "String": macro : String;
-			case "Array": macro : godot.GodotArray;
+			case "Array": return TPath({
+				pack: options.arrayType.pack,
+				name: options.arrayType.name,
+				params: []
+			});
 			case "Variant": options.godotVariantType;
 			case _: TPath({
 				pack: getPack(),
