@@ -84,9 +84,9 @@ class GenerateBuiltinClass {
 				}
 
 				@:arrayAccess
-				public inline function arrayAccessSet(k: $keyType, v: $valueType): $valueType {
+				public inline function arrayAccessSet(key: $keyType, value: $valueType): $valueType {
 					$injectSet;
-					return v;
+					return value;
 				}
 			}
 
