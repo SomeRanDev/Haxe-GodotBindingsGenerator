@@ -67,6 +67,7 @@ function main() {
 		Sys.println("No `extension_api.json` found, let's generated them!");
 		true;
 	} else {
+		jsonPath = "extension_api.json";
 		false;
 	}
 
@@ -74,6 +75,10 @@ function main() {
 	if(shouldGenerate) {
 		jsonPath = "extension_api.json";
 		generateJson();
+	}
+
+	if(jsonPath == null) {
+		Sys.println("extension_api.json path not found; aborting.");
 	}
 
 	// Generate and output type definitions
@@ -138,6 +143,18 @@ function generateJson() {
 			godotPath = if(FileSystem.exists(path) && !FileSystem.isDirectory(path)) {
 				try {
 					final process = new Process(path, ["--version"]);
+
+					Sys.println(
+"
+NOTE!!!
+Newer versions of Godot hang forever when checking version or generating bindings, breaking compatibility with this tool. If things freeze and don't continue, that means you need to generate the `extension_api.json` file manually by running:
+
+godot.exe --dump-extension-api-with-docs
+
+Otherwise, this file should generate automatically in a couple seconds...
+"
+					);
+
 					if(process.exitCode(true) == 0) {
 						godotVersion = process.stdout.readAll().toString();
 						path;
