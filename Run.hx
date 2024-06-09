@@ -67,7 +67,9 @@ function main() {
 		Sys.println("No `extension_api.json` found, let's generated them!");
 		true;
 	} else {
-		jsonPath = "extension_api.json";
+		if(jsonPath == null) {
+			jsonPath = "extension_api.json";
+		}
 		false;
 	}
 
