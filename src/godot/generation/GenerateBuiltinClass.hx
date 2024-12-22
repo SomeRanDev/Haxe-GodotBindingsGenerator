@@ -117,7 +117,7 @@ class GenerateBuiltinClass {
 				case "not": "!{0}";
 				case "unary-": "-{0}";
 				case "unary+": continue; // +A not supported
-				case op: "{0} " + op + " {1}";
+				case op: "({0}) " + op + " ({1})";
 			}
 
 			final opName = switch(opExpr.expr) {
