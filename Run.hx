@@ -27,6 +27,12 @@ function main() {
 		macro : GodotVariant;
 	} else macro : Dynamic;
 
+	// Check for --useGodotTypedArray
+	final typedArrayType = if(args.contains("--useGodotTypedArray")) {
+		args.remove("--useGodotTypedArray");
+		{ pack: [], name: "GodotTypedArray" }
+	} else ({ pack: [], name: "Array" });
+
 	final cwd = switch(args) {
 		case ["help", _]: {
 			help();
@@ -87,7 +93,8 @@ function main() {
 	final typeDefinitions = godot.Bindings.generate(jsonPath, {
 		cpp: isCpp,
 		nativeNameMeta: nativeMeta,
-		godotVariantType: variantType
+		godotVariantType: variantType,
+		typedArrayType: typedArrayType
 	});
 	godot.Bindings.output(outputDir, typeDefinitions);
 
