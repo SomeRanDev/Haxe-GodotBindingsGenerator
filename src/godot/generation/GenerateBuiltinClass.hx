@@ -75,7 +75,7 @@ class GenerateBuiltinClass {
 			final keyType = indexKeyType(name);
 
 			final injectGet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}])", this, key)');
-			final injectSet = Util.generateInjectionExpr('${options.injectFunction}("({0}[{1}] = {2})", this, key, value)');
+			final injectSet = Util.generateInjectionExpr('${options.injectFunction}("{0}[{1}] = {2}", this, key, value)');
 
 			final arrayAccessFields = macro class {
 				@:arrayAccess
