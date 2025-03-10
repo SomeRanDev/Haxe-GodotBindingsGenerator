@@ -424,7 +424,7 @@ class GenerateBuiltinClass {
 			fields.push({
 				name: Util.processIdentifier(method.name),
 				pos: Util.makeEmptyPosition(),
-				access: fieldAccess,
+				access: method.is_static ? fieldAccess.concat([AStatic]) : fieldAccess,
 				kind: FFun({
 					args: method.arguments.maybeMap(function(arg, _): FunctionArg {
 						return {
