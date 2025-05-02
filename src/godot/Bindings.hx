@@ -349,4 +349,37 @@ class Bindings {
 
 		return #if eval macro $v{v} #else null #end;
 	}
+
+	/**
+		Given a Godot argument JSON object (with "default_value" and "type" Strings),
+		returns the default value expression for Haxe or null.
+	**/
+	public function getValueAsGDScript(data: { default_value: Null<String>, type: String }): Null<String> {
+		if(data.default_value == null) {
+			return null;
+		}
+
+		if(data.default_value == "null") {
+			return null;
+		}
+
+		if(data.type.startsWith("enum::")) {
+			final enumName = data.type.substr("enum::".length);
+			final key = enumName.replace(".", "_");
+			final caseIndex = Std.parseInt(data.default_value);
+			final enumData = globalEnums[key];
+			if(enumData != null) {
+				for(v in enumData.values) {
+					if(v.value == caseIndex) {
+						return enumName + "." + v.name;
+					}
+				}
+			}
+		}
+
+		return switch(data.type) {
+			case "bool" | "int" | "float" | "String": data.default_value;
+			case _: return null;
+		}
+	}
 }

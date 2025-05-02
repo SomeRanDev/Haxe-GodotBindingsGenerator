@@ -477,6 +477,7 @@ class GenerateClass {
 				macro is_virtual($v{method.is_virtual}),
 				macro hash($v{method.hash}),
 				macro hash_compatibility($v{method.hash_compatibility}),
+				macro nativeName($v{method.name})
 				#end
 			);
 
@@ -550,9 +551,14 @@ class GenerateClass {
 							if(godotArg.meta != null)
 								meta.push(Util.makeMetadataEntry(macro meta($v{godotArg.meta})));
 							if(godotArg.default_value != null) {
-								meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
-
-								meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{Util.valueStringToGDScript(godotArg.default_value, godotArg.type)})));
+								final valueGDScript = bindings.getValueAsGDScript(godotArg);
+								if(valueGDScript != null) {
+									meta.push(Util.makeMetadataEntry(macro default_value($v{valueGDScript})));
+									meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{valueGDScript})));
+								} else {
+									meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
+									meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{Util.valueStringToGDScript(godotArg.default_value, godotArg.type)})));
+								}
 								if(options.cpp) {
 									final cppCode = Util.valueStringToCpp(godotArg.default_value, godotArg.type);
 									final argExprs = cppCode == null ? [] : [macro $v{cppCode}];

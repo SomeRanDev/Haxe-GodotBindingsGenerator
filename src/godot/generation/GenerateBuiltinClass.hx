@@ -446,7 +446,7 @@ class GenerateBuiltinClass {
 					macro is_vararg($v{method.is_vararg}),
 					macro is_const($v{method.is_const}),
 					macro is_static($v{method.is_static}),
-					macro hash($v{method.hash})
+					macro hash($v{method.hash}),
 					macro nativeName($v{method.name})
 					#end
 				),
