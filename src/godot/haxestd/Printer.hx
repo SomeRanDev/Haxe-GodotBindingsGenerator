@@ -195,6 +195,7 @@ class Printer {
 			case AExtern: "extern";
 			case AAbstract: "abstract";
 			case AOverload: "overload";
+			case AEnum: "enum";
 		}
 
 	/// MODIFIED!!
