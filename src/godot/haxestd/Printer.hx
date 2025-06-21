@@ -195,6 +195,9 @@ class Printer {
 			case AExtern: "extern";
 			case AAbstract: "abstract";
 			case AOverload: "overload";
+			#if(haxe >= "5.0.0")
+			case AEnum: "enum";
+			#end
 		}
 
 	/// MODIFIED!!
