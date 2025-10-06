@@ -274,6 +274,7 @@ class GenerateClass {
 		}
 
 		final propertyRenames: Map<String, String> = [];
+		final existingRenames: Map<String, Bool> = [];
 		final setters: Map<String, String> = [];
 
 		for(property in cls.properties.denullify()) {
@@ -297,12 +298,14 @@ class GenerateClass {
 				// TODO: check for private getter??
 				if(property.getter != null && property.getter != "get_" + name) {
 					propertyRenames.set(property.getter, "get_" + name);
+					existingRenames.set("get_" + name, true);
 				}
 
 				if(hasSetter) {
 					final setter = property.setter.trustMe();
 					if(setter != "set_" + name) {
 						propertyRenames.set(setter, "set_" + name);
+						existingRenames.set("set_" + name, true);
 					}
 					setters.set(setter, property.type);
 				}
@@ -524,6 +527,8 @@ class GenerateClass {
 				additionalAccess: Null<Array<Access>> = null,
 				expr: Null<Expr> = null
 			) {
+				
+
 				final access = fieldAccess.copy();
 				if(method.is_static) {
 					access.push(AStatic);
@@ -684,8 +689,12 @@ class GenerateClass {
 					#end
 				}
 
+				// It's possible for Godot API to have functions that are named "get_" or "set_".
+				// To prevent conflict with any Haxe getters/setters we made, add "_function" to the end.
+				final forcedName = existingRenames.exists(name) ? (preimplName + "_function") : preimplName;
+
 				addField(
-					preimplName,
+					forcedName,
 					baseFieldMetadata
 				);
 			}
