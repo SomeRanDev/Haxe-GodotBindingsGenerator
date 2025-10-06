@@ -508,7 +508,9 @@ class GenerateClass {
 
 			final setterType = setters.get(name);
 
+			var wasRenamed = false;
 			final nativeMeta = if(propertyRenames.exists(name)) {
+				wasRenamed = true;
 				final result = Util.makeMetadata(#if eval macro $v{'#if use_properties ${options.nativeNameMeta}'}($v{name}) #end);
 				name = propertyRenames.get(name).trustMe();
 				result;
@@ -691,7 +693,7 @@ class GenerateClass {
 
 				// It's possible for Godot API to have functions that are named "get_" or "set_".
 				// To prevent conflict with any Haxe getters/setters we made, add "_function" to the end.
-				final forcedName = existingRenames.exists(name) ? (preimplName + "_function") : preimplName;
+				final forcedName = !wasRenamed && existingRenames.exists(name) ? (preimplName + "_function") : preimplName;
 
 				addField(
 					forcedName,
