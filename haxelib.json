@@ -1,6 +1,6 @@
 {
 	"name": "godot-api-generator",
-	"version": "1.5.2",
+	"version": "1.5.3",
 	"description": "Generates target-agnostic Godot bindings for Haxe.",
 	"url": "https://github.com/SomeRanDev/Haxe-GodotBindingsGenerator",
 	"license": "MIT",
@@ -15,6 +15,6 @@
 		"godot-extension-api-typings": "1.1.2"
 	},
 	"classPath": "src/",
-	"releasenote": "Fix conflict from Godot API functions prefixed with get_/set_. Fix Haxe 5 compatibility.",
+	"releasenote": "Fix get_/set_ conflict resolver renaming the property functions too.",
 	"contributors": ["SomeRanDev"]
 }
