@@ -1,14 +1,12 @@
 package godot.generation;
 
 import haxe.macro.Expr;
-
 import godot.BindingsUtil as Util;
 import godot.extension_api.Class as GodotClass;
 import godot.extension_api.Class.ClassMethod;
 import godot.generation.GenerateEnum;
 
 // ---
-
 using godot.bindings.NullableArrayTools;
 using godot.bindings.NullTools;
 
@@ -20,102 +18,102 @@ class GenerateClass {
 	/**
 		Names of the loaded Godot singletons.
 	**/
-	static var singletons: Map<String, Bool> = [];
+	static var singletons:Map<String, Bool> = [];
 
 	/**
 		This is a map of builtin classes that have been validated to have
 		a constructor that would work with `@:reassignOnSubfieldEdit`.
 	**/
-	static var validatedROSEBuiltinClasses: Map<String, Array<String>> = [];
+	static var validatedROSEBuiltinClasses:Map<String, Array<String>> = [];
 
 	/**
 		Preemptively iterate through the "classes" and figure out which ones
 		extend from the `generateHierarchyMeta` list.
 	**/
-	static function generateHierarchyData(classes: Array<GodotClass>, bindings: Bindings): Map<String, Map<String, Bool>> {
+	static function generateHierarchyData(classes:Array<GodotClass>, bindings:Bindings):Map<String, Map<String, Bool>> {
 		final options = bindings.options;
 
-		final hierarchyData: Map<String, Map<String, Bool>> = [];
-		final unprocessedChildren: Map<String, Array<GodotClass>> = [];
+		final hierarchyData:Map<String, Map<String, Bool>> = [];
+		final unprocessedChildren:Map<String, Array<GodotClass>> = [];
 
-		function processHierarchy(cls: GodotClass) {
-			if(hierarchyData.exists(cls.name)) {
+		function processHierarchy(cls:GodotClass) {
+			if (hierarchyData.exists(cls.name)) {
 				return;
 			}
 
 			final isBase = options.generateHierarchyMeta.contains(cls.name);
 			final superClass = cls.inherits;
-			if(superClass == null || superClass == "Object") {
-				final map: Map<String, Bool> = [];
-				for(m in options.generateHierarchyMeta) {
+			if (superClass == null || superClass == "Object") {
+				final map:Map<String, Bool> = [];
+				for (m in options.generateHierarchyMeta) {
 					map.set(m, cls.name == m);
 				}
 				hierarchyData.set(cls.name, map);
-			} else if(hierarchyData.exists(superClass)) {
+			} else if (hierarchyData.exists(superClass)) {
 				final map = Reflect.copy(hierarchyData.get(superClass));
-				if(map == null) {
+				if (map == null) {
 					throw "Reflect.copy failed.";
 				}
-				if(isBase) {
+				if (isBase) {
 					map.set(cls.name, true);
 				}
 				hierarchyData.set(cls.name, map);
 			} else {
-				if(!unprocessedChildren.exists(superClass)) {
+				if (!unprocessedChildren.exists(superClass)) {
 					unprocessedChildren.set(superClass, []);
 				}
 				unprocessedChildren.get(superClass).trustMe().push(cls);
 				return;
 			}
 
-			if(unprocessedChildren.exists(cls.name)) {
-				for(child in unprocessedChildren.get(cls.name).trustMe()) {
+			if (unprocessedChildren.exists(cls.name)) {
+				for (child in unprocessedChildren.get(cls.name).trustMe()) {
 					processHierarchy(child);
 				}
 				unprocessedChildren.remove(cls.name);
 			}
 		}
 
-		for(cls in classes) {
+		for (cls in classes) {
 			processHierarchy(cls);
 		}
 
 		return hierarchyData;
 	}
 
-	static var methodsMap: Map<String, Map<String, { method: ClassMethod, inParentClass: Bool }>> = [];
+	static var methodsMap:Map<String, Map<String, {method:ClassMethod, inParentClass:Bool}>> = [];
 
 	/**
 		Generates and adds all type definitions from `classes`.
 	**/
-	public static function generate(data: ExtensionApi, bindings: Bindings, result: Array<TypeDefinition>) {
+	public static function generate(data:ExtensionApi, bindings:Bindings, result:Array<TypeDefinition>) {
 		final options = bindings.options;
 
 		// Figure out which classes are Singletons
 		singletons = [];
-		if(data.singletons != null) {
-			for(singleton in data.singletons.denullify()) {
+		if (data.singletons != null) {
+			for (singleton in data.singletons.denullify()) {
 				singletons.set(singleton.name, true);
 			}
 		}
 
 		// Get reference to classes
-		final classes: Map<String, GodotClass> = [];
-		for(cls in data.classes) {
+		final classes:Map<String, GodotClass> = [];
+		for (cls in data.classes) {
 			classes.set(cls.name, cls);
 		}
 
 		// Preprocessing...
-		for(cls in data.classes) {
+		for (cls in data.classes) {
 			// Make map of all methods in all classes
-			final methodMap: Map<String, { method: ClassMethod, inParentClass: Bool }> = [];
-			var currentClass: Null<GodotClass> = cls;
+			final methodMap:Map<String, {method:ClassMethod, inParentClass:Bool}> = [];
+			var currentClass:Null<GodotClass> = cls;
 			var inParentClass = false;
-			while(currentClass != null) {
-				for(method in currentClass.methods.denullify()) {
+			while (currentClass != null) {
+				for (method in currentClass.methods.denullify()) {
 					// Do not set method if child method already exists
-					if(!methodMap.exists(method.name)) {
-						methodMap.set(method.name, { method: method, inParentClass: inParentClass });
+					if (!methodMap.exists(method.name)) {
+						methodMap.set(method.name, {method: method, inParentClass: inParentClass});
 					}
 				}
 				currentClass = {
@@ -127,19 +125,19 @@ class GenerateClass {
 			methodsMap.set(cls.name, methodMap);
 
 			// Add to global enums map
-			for(e in cls.enums.denullify()) {
+			for (e in cls.enums.denullify()) {
 				bindings.globalEnums.set(cls.name + "_" + e.name, e);
 			}
 		}
 
 		// Generate bindings for "classes"
 		final hierarchyData = options.generateHierarchyMeta.length > 0 ? generateHierarchyData(data.classes, bindings) : null;
-		for(cls in data.classes) {
+		for (cls in data.classes) {
 			final typeDefinition = generateClass(cls, bindings);
 
 			// Generate additional metadata from `generateHierarchyMeta`
-			if(hierarchyData != null && hierarchyData.exists(cls.name)) {
-				for(className => inherits in hierarchyData.get(cls.name).trustMe()) {
+			if (hierarchyData != null && hierarchyData.exists(cls.name)) {
+				for (className => inherits in hierarchyData.get(cls.name).trustMe()) {
 					final m = typeDefinition.meta ?? [];
 					m.push({
 						name: ":is_" + className.toLowerCase(),
@@ -152,8 +150,9 @@ class GenerateClass {
 
 			result.push(typeDefinition);
 
-			for(e in cls.enums.denullify()) {
-				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(cls.name), "godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"));
+			for (e in cls.enums.denullify()) {
+				result.push(GenerateEnum.generateGlobalEnum(e, bindings, Util.processTypeName(cls.name),
+					"godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"));
 			}
 		}
 	}
@@ -161,16 +160,16 @@ class GenerateClass {
 	/**
 		Generates a single `TypeDefinition` for the `Class`.
 	**/
-	static function generateClass(cls: GodotClass, bindings: Bindings): TypeDefinition {
+	static function generateClass(cls:GodotClass, bindings:Bindings):TypeDefinition {
 		final options = bindings.options;
 
-		final fields: Array<Field> = [];
+		final fields:Array<Field> = [];
 		final fieldAccess = [APublic];
 
 		final isSingleton = singletons.exists(cls.name);
 
 		// Assume every class has a no-argument constructor.
-		if(!isSingleton) {
+		if (!isSingleton) {
 			fields.push({
 				name: "new",
 				pos: Util.makeEmptyPosition(),
@@ -182,33 +181,31 @@ class GenerateClass {
 			});
 		}
 
-		for(constant in cls.constants.denullify()) {
+		for (constant in cls.constants.denullify()) {
 			fields.push({
 				name: Util.processIdentifier(constant.name),
 				pos: Util.makeEmptyPosition(),
 				access: fieldAccess.concat([AStatic]),
-				kind: FVar(macro : Int,
-					// Cannot have value on extern, but if we could we'd use: macro $v{constant.value}),
-					null
-				),
+				kind: FVar(macro :Int, // Cannot have value on extern, but if we could we'd use: macro $v{constant.value}),
+					null),
 				meta: [],
 				doc: Util.processDescription(constant.description)
 			});
 		}
 
 		// Validate property types and their getter/setter types
-		final getterExpectedType: Map<String, { name: String, type: String }> = [];
-		final setterExpectedType: Map<String, { name: String, type: String }> = [];
-		final getterSetterFound: Map<String, { sourceProperty: String, exists: Bool }> = [];
-		final extraPropertyMeta: Map<String, Metadata> = [];
-		for(property in cls.properties.denullify()) {
-			if(property.getter != null) {
+		final getterExpectedType:Map<String, {name:String, type:String}> = [];
+		final setterExpectedType:Map<String, {name:String, type:String}> = [];
+		final getterSetterFound:Map<String, {sourceProperty:String, exists:Bool}> = [];
+		final extraPropertyMeta:Map<String, Metadata> = [];
+		for (property in cls.properties.denullify()) {
+			if (property.getter != null) {
 				getterExpectedType.set(property.getter, property);
-				getterSetterFound.set(property.getter, { sourceProperty: property.name, exists: false });
+				getterSetterFound.set(property.getter, {sourceProperty: property.name, exists: false});
 			}
-			if(property.setter != null) {
+			if (property.setter != null) {
 				setterExpectedType.set(property.setter, property);
-				getterSetterFound.set(property.setter, { sourceProperty: property.name, exists: false });
+				getterSetterFound.set(property.setter, {sourceProperty: property.name, exists: false});
 			}
 
 			extraPropertyMeta.set(property.name, []);
@@ -216,43 +213,38 @@ class GenerateClass {
 
 		// Let's ignore properties who don't have matching types with their getters/setters for the time being.
 		// They can still be used by calling the getter/setter function directly.
-		final ignoreProperties: Map<String, Bool> = [];
-		function prop(p: String) {
-			// return if(StringTools.startsWith(p, "enum::")) "int";
-			// else if(StringTools.startsWith(p, "bitfield::")) "int";
-			// Uncomment once a solution to treat Strings and StringNames the same is found...
-			// else if(p == "StringName") "String";
+		final ignoreProperties:Map<String, Bool> = [];
+		function prop(p:String) {
 			return p;
 		}
 
 		final mappedMethods = methodsMap.get(cls.name);
-		if(mappedMethods != null) {
-			for(methodName => methodData in mappedMethods /* cls.methods.denullify() */) {
+		if (mappedMethods != null) {
+			for (methodName => methodData in mappedMethods) {
 				final method = methodData.method;
 				final methodName = method.name;
 				final getterSetterData = getterSetterFound.get(methodName);
-				if(getterSetterData != null) {
+				if (getterSetterData != null) {
 					getterSetterData.exists = true;
 				}
 
-				if(getterExpectedType.exists(methodName)) {
+				if (getterExpectedType.exists(methodName)) {
 					final property = getterExpectedType.get(methodName).trustMe();
-					if(method.return_value == null || prop(method.return_value.type) != prop(property.type)) {
+					if (method.return_value == null || prop(method.return_value.type) != prop(property.type)) {
 						#if godot_api_bindings_debug
 						Sys.println('Property and getter types do not match.\n${cls.name} { func ${methodName}(...) -> ${method.return_value.type}, prop: ${property.name}: ${property.type} }');
 						#end
 						ignoreProperties.set(property.name, true);
-					} else if(methodData.inParentClass && methodName != "get_" + property.name) {
+					} else if (methodData.inParentClass && methodName != "get_" + property.name) {
 						#if eval
-						extraPropertyMeta.get(property.name).push(Util.makeMetadataEntry(
-							macro godot_bindings_gen_prepend($v{'\tpublic extern inline function get_${property.name}() { return ${methodName}(); }'})
-						));
+						extraPropertyMeta.get(property.name)
+							.push(Util.makeMetadataEntry(macro godot_bindings_gen_prepend($v{'\tpublic extern inline function get_${property.name}() { return ${methodName}(); }'})));
 						#end
 					}
-				} else if(setterExpectedType.exists(methodName)) {
+				} else if (setterExpectedType.exists(methodName)) {
 					final property = setterExpectedType.get(methodName).trustMe();
 					final args = method.arguments.denullify();
-					if(args.length == 0 || prop(args[args.length - 1].type) != prop(property.type)) {
+					if (args.length == 0 || prop(args[args.length - 1].type) != prop(property.type)) {
 						#if godot_api_bindings_debug
 						Sys.println('Property and setter types do not match.\n${cls.name} { func ${methodName}(..., v: ${args[args.length - 1].type}), prop: ${property.name}: ${property.type} }');
 						#end
@@ -264,8 +256,8 @@ class GenerateClass {
 
 		// Check for non-existant methods.
 		// Let's ignore these properties too.
-		for(_ => data in getterSetterFound) {
-			if(!data.exists) {
+		for (_ => data in getterSetterFound) {
+			if (!data.exists) {
 				ignoreProperties.set(data.sourceProperty, true);
 				#if godot_api_bindings_debug
 				Sys.println('${cls.name}.$name doesn\'t exist');
@@ -273,12 +265,12 @@ class GenerateClass {
 			}
 		}
 
-		final propertyRenames: Map<String, String> = [];
-		final existingRenames: Map<String, Bool> = [];
-		final setters: Map<String, String> = [];
+		final propertyRenames:Map<String, String> = [];
+		final existingRenames:Map<String, Bool> = [];
+		final setters:Map<String, String> = [];
 
-		for(property in cls.properties.denullify()) {
-			if(StringTools.contains(property.type, ",") || StringTools.contains(property.type, "/")) {
+		for (property in cls.properties.denullify()) {
+			if (StringTools.contains(property.type, ",") || StringTools.contains(property.type, "/")) {
 				continue;
 			}
 
@@ -294,16 +286,15 @@ class GenerateClass {
 			// Example: `Control.anchor_XXX` properties and their setter: `Control._set_anchor`
 			final hasSetter = property.setter != null && !StringTools.startsWith(property.setter, "_");
 
-			if(!ignoreProperty && !isSpecialIndexedProp) {
-				// TODO: check for private getter??
-				if(property.getter != null && property.getter != "get_" + name) {
+			if (!ignoreProperty && !isSpecialIndexedProp) {
+				if (property.getter != null && property.getter != "get_" + name) {
 					propertyRenames.set(property.getter, "get_" + name);
 					existingRenames.set("get_" + name, true);
 				}
 
-				if(hasSetter) {
+				if (hasSetter) {
 					final setter = property.setter.trustMe();
-					if(setter != "set_" + name) {
+					if (setter != "set_" + name) {
 						propertyRenames.set(setter, "set_" + name);
 						existingRenames.set("set_" + name, true);
 					}
@@ -311,14 +302,11 @@ class GenerateClass {
 				}
 			}
 
-			final data = if(isSingleton) {
+			final data = if (isSingleton) {
 				{
 					access: fieldAccess.concat([AStatic]),
-					meta: !options.cpp ? [] : Util.makeMetadata(
-						#if eval
-						macro godot_bindings_gen_prepend($v{'#if !${Bindings.cxxInlineSingletonsCondition}'}),
-						macro godot_bindings_gen_append("#end")
-						#end
+					meta: !options.cpp ? [] : Util.makeMetadata(#if eval macro godot_bindings_gen_prepend($v{'#if !${Bindings.cxxInlineSingletonsCondition}'}),
+						macro godot_bindings_gen_append("#end") #end
 					)
 				}
 			} else {
@@ -331,25 +319,26 @@ class GenerateClass {
 			var propertyMeta = extraPropertyMeta.get(property.name) ?? [];
 
 			// Setup property if we're not ignoring it.
-			if(!ignoreProperty) {
+			if (!ignoreProperty) {
 				// For the "special indexed" properties, let's generate their own set/get inline functions.
-				if(isSpecialIndexedProp) {
+				if (isSpecialIndexedProp) {
 					final typeString = haxe.macro.ComplexTypeTools.toString(bindings.getType(property.type));
 
 					var enumName = null;
 					final enumIndex = property.index;
-					if(enumIndex == null) throw "Impossible";
+					if (enumIndex == null)
+						throw "Impossible";
 
 					var resultingValue = Std.string(enumIndex);
 
-					for(m in cls.methods.denullify()) {
-						if(m.name == property.getter) {
+					for (m in cls.methods.denullify()) {
+						if (m.name == property.getter) {
 							enumName = m.arguments.denullify()[0].trustMe().type;
 							break;
 						}
 					}
 
-					if(enumName != null && StringTools.startsWith(enumName, "enum::")) {
+					if (enumName != null && StringTools.startsWith(enumName, "enum::")) {
 						final enumPack = enumName.substr("enum::".length).split(".");
 						final enumClassName = enumPack[0];
 						final enumLocalName = enumPack[enumPack.length - 1];
@@ -357,14 +346,15 @@ class GenerateClass {
 
 						var enumObj = bindings.globalEnums.get(enumHaxeName);
 
-						if(enumObj != null) {
+						if (enumObj != null) {
 							var name = null;
-							for(v in enumObj.values) {
-								if(v.value == enumIndex) {
+							for (v in enumObj.values) {
+								if (v.value == enumIndex) {
 									name = v.name;
 								}
 							}
-							if(name != null) resultingValue = name;
+							if (name != null)
+								resultingValue = name;
 						}
 					}
 
@@ -378,34 +368,32 @@ class GenerateClass {
 	}\n';
 
 					#if eval
-					propertyMeta.push(Util.makeMetadataEntry(
-						macro godot_bindings_gen_prepend($v{'$getter\n$setter'})
-					));
+					propertyMeta.push(Util.makeMetadataEntry(macro godot_bindings_gen_prepend($v{'$getter\n$setter'})));
 					#end
 				}
 
 				// @:reassignOnSubfieldEdit
-				if(hasSetter) {
+				if (hasSetter) {
 					final builtinClassType = bindings.builtinClasses.get(property.type);
-					if(builtinClassType != null) {
+					if (builtinClassType != null) {
 						var margs = validatedROSEBuiltinClasses.get(property.type);
-						if(margs == null) {
+						if (margs == null) {
 							margs = [];
 
 							final members = builtinClassType.members.denullify();
-							final membersMap: Map<String, String> = [];
-							for(m in members) {
+							final membersMap:Map<String, String> = [];
+							for (m in members) {
 								membersMap.set(m.name, m.type);
 							}
-							for(c in builtinClassType.constructors.denullify()) {
+							for (c in builtinClassType.constructors.denullify()) {
 								final constructorArgs = c.arguments.denullify();
 
 								// Found the constructor!
-								if(constructorArgs.length == members.length) {
+								if (constructorArgs.length == members.length) {
 									var found = true;
-									for(carg in constructorArgs) {
+									for (carg in constructorArgs) {
 										final memberType = membersMap.get(carg.name);
-										if(memberType != null && memberType == carg.type) {
+										if (memberType != null && memberType == carg.type) {
 											margs.push(carg.name);
 										} else {
 											margs = []; // Clear and try again...
@@ -413,7 +401,7 @@ class GenerateClass {
 											break;
 										}
 									}
-									if(found) {
+									if (found) {
 										break;
 									}
 								}
@@ -422,9 +410,9 @@ class GenerateClass {
 							validatedROSEBuiltinClasses.set(property.type, margs);
 						}
 
-						propertyMeta.push(Util.makeMetadataEntry(
-							macro reassignOnSubfieldEdit($a{["set_" + name + "_impl"].concat(margs).map(m -> macro $i{m})})
-						));
+						propertyMeta.push(Util.makeMetadataEntry(macro reassignOnSubfieldEdit($a{
+							["set_" + name + "_impl"].concat(margs).map(m -> macro $i{m})
+						})));
 					}
 				}
 
@@ -433,15 +421,11 @@ class GenerateClass {
 					pos: Util.makeEmptyPosition(),
 					access: data.access,
 					kind: FProp("get", property.setter == null ? "never" : "set", bindings.getType(property.type)),
-					meta: Util.makeMetadata(
-						#if eval
-						macro index($v{property.index}),
-						macro getter($v{property.getter}),
-						macro setter($v{property.setter}),
-						macro godot_bindings_gen_prepend($v{'#if use_properties'}),
-						macro godot_bindings_gen_append("#else")
-						#end
-					).concat(data.meta).concat(propertyMeta),
+					meta: Util.makeMetadata(#if eval macro index($v{property.index}), macro getter($v{property.getter}), macro setter($v{property.setter}),
+						macro godot_bindings_gen_prepend($v{'#if use_properties'}), macro godot_bindings_gen_append("#else") #end
+					)
+						.concat(data.meta)
+						.concat(propertyMeta),
 					doc: Util.processDescription(property.description)
 				});
 
@@ -460,48 +444,32 @@ class GenerateClass {
 				pos: Util.makeEmptyPosition(),
 				access: data.access,
 				kind: FVar(bindings.getType(property.type)),
-				meta: Util.makeMetadata(
-					#if eval
-					macro index($v{property.index}),
-					macro getter($v{property.getter}),
-					macro setter($v{property.setter})
-					#end
-				).concat(data.meta),
+				meta: Util.makeMetadata(#if eval macro index($v{property.index}), macro getter($v{property.getter}), macro setter($v{property.setter}) #end)
+					.concat(data.meta),
 				doc: Util.processDescription(property.description)
 			});
 		}
 
-		for(method in cls.methods.denullify()) {
-			final metadata = Util.makeMetadata(
-				#if eval
-				macro is_const($v{method.is_const}),
-				macro is_static($v{method.is_static}),
-				macro is_vararg($v{method.is_vararg}),
-				macro is_virtual($v{method.is_virtual}),
-				macro hash($v{method.hash}),
-				macro hash_compatibility($v{method.hash_compatibility}),
-				macro nativeName($v{method.name})
-				#end
-			);
+		for (method in cls.methods.denullify()) {
+			final metadata = Util.makeMetadata(#if eval macro is_const($v{method.is_const}), macro is_static($v{method.is_static}),
+				macro is_vararg($v{method.is_vararg}), macro is_virtual($v{method.is_virtual}), macro hash($v{method.hash}),
+				macro hash_compatibility($v{method.hash_compatibility}), macro nativeName($v{method.name}) #end);
 
-			if(method.return_value != null) {
+			if (method.return_value != null) {
 				#if eval
-				metadata.unshift(
-					Util.makeMetadata(
-						macro return_value_meta($v{method.return_value.meta})
-					)[0]
-				);
+				metadata.unshift(Util.makeMetadata(macro return_value_meta($v{method.return_value.meta}))[0]);
 				#end
 			}
 
 			var hasCppType = StringTools.endsWith(method.return_value?.type ?? "", "*");
-			for(a in method.arguments.denullify()) {
-				if(StringTools.endsWith(a.type, "*")) {
+			for (a in method.arguments.denullify()) {
+				if (StringTools.endsWith(a.type, "*")) {
 					hasCppType = true;
 					break;
 				}
 			}
-			if(hasCppType) continue;
+			if (hasCppType)
+				continue;
 
 			var name = Util.processIdentifier(method.name);
 			final originalName = name;
@@ -509,7 +477,7 @@ class GenerateClass {
 			final setterType = setters.get(name);
 
 			var wasRenamed = false;
-			final nativeMeta = if(propertyRenames.exists(name)) {
+			final nativeMeta = if (propertyRenames.exists(name)) {
 				wasRenamed = true;
 				final result = Util.makeMetadata(#if eval macro $v{'#if use_properties ${options.nativeNameMeta}'}($v{name}) #end);
 				name = propertyRenames.get(name).trustMe();
@@ -519,84 +487,82 @@ class GenerateClass {
 			};
 
 			var preimplName = name;
-			if(!isSingleton && setterType != null) {
+			if (!isSingleton && setterType != null) {
 				name += "_impl";
 			}
 
-			function addField(
-				overrideName: Null<String> = null,
-				extraMetadata: Null<Array<MetadataEntry>> = null,
-				additionalAccess: Null<Array<Access>> = null,
-				expr: Null<Expr> = null
-			) {
-				
-
+			function addField(overrideName:Null<String> = null, extraMetadata:Null<Array<MetadataEntry>> = null, additionalAccess:Null<Array<Access>> = null,
+					expr:Null<Expr> = null) {
 				final access = fieldAccess.copy();
-				if(method.is_static) {
+				if (method.is_static) {
 					access.push(AStatic);
 				}
-				if(additionalAccess != null) {
-					for(a in additionalAccess) access.push(a);
+				if (additionalAccess != null) {
+					for (a in additionalAccess)
+						access.push(a);
 				}
+
+				// Build function arguments list
+				final functionArgs:Array<FunctionArg> = method.arguments.maybeMap(function(godotArg, index):FunctionArg {
+					final value = bindings.getValue(godotArg);
+					var opt:Null<Bool> = null;
+
+					// Has default value that cannot be expressed in Haxe.
+					// Reflaxe/GDScript can use @:default_value to fill the defaults.
+					// Not sure how to handle other targets atm.
+					if (godotArg.default_value != null && value == null)
+						opt = true;
+
+					final meta = [];
+					#if eval
+					if (godotArg.meta != null)
+						meta.push(Util.makeMetadataEntry(macro meta($v{godotArg.meta})));
+					if (godotArg.default_value != null) {
+						final valueGDScript = bindings.getValueAsGDScript(godotArg);
+						if (valueGDScript != null) {
+							meta.push(Util.makeMetadataEntry(macro default_value($v{valueGDScript})));
+							meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{valueGDScript})));
+						} else {
+							meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
+							meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{
+								Util.valueStringToGDScript(godotArg.default_value, godotArg.type)
+							})));
+						}
+						if (options.cpp) {
+							final cppCode = Util.valueStringToCpp(godotArg.default_value, godotArg.type);
+							final argExprs = cppCode == null ? [] : [macro $v{cppCode}];
+							meta.push(Util.makeMetadataEntry(macro "#if cxx :noNullPad"($a{argExprs})));
+						}
+					}
+
+					if (extraMetadata == null)
+						extraMetadata = [];
+					for (m in meta) {
+						final r = ~/^#if ([a-zA-Z0-9]+) (.*)$/;
+						var argMetaName = ":argMeta";
+						var paramMetaName = m.name;
+						if (r.match(paramMetaName)) {
+							argMetaName = '#if ${r.matched(1)} $argMetaName';
+							paramMetaName = r.matched(2);
+						}
+						extraMetadata.push(Util.makeMetadataEntry(macro $v{argMetaName}($v{index}, $v{paramMetaName}($a{m.params}))));
+					}
+					#end
+					return {
+						name: Util.processIdentifier(godotArg.name),
+						type: bindings.getArgumentType(godotArg.type),
+						meta: meta,
+						opt: opt,
+						value: value
+					}
+				});
 
 				fields.push({
 					name: overrideName ?? name,
 					pos: Util.makeEmptyPosition(),
 					access: access,
 					kind: FFun({
-						args: method.arguments.maybeMap(function(godotArg, index): FunctionArg {
-							final value = bindings.getValue(godotArg);
-							var opt: Null<Bool> = null;
-
-							// Has default value that cannot be expressed in Haxe.
-							// Reflaxe/GDScript can use @:default_value to fill the defaults.
-							// Not sure how to handle other targets atm.
-							if(godotArg.default_value != null && value == null) opt = true;
-
-							final meta = [];
-							#if eval
-							if(godotArg.meta != null)
-								meta.push(Util.makeMetadataEntry(macro meta($v{godotArg.meta})));
-							if(godotArg.default_value != null) {
-								final valueGDScript = bindings.getValueAsGDScript(godotArg);
-								if(valueGDScript != null) {
-									meta.push(Util.makeMetadataEntry(macro default_value($v{valueGDScript})));
-									meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{valueGDScript})));
-								} else {
-									meta.push(Util.makeMetadataEntry(macro default_value($v{godotArg.default_value})));
-									meta.push(Util.makeMetadataEntry(macro "#if gdscript :noNullPad"($v{Util.valueStringToGDScript(godotArg.default_value, godotArg.type)})));
-								}
-								if(options.cpp) {
-									final cppCode = Util.valueStringToCpp(godotArg.default_value, godotArg.type);
-									final argExprs = cppCode == null ? [] : [macro $v{cppCode}];
-									meta.push(Util.makeMetadataEntry(macro "#if cxx :noNullPad"($a{argExprs})));
-								}
-							}
-
-							if(extraMetadata == null) extraMetadata = [];
-							for(m in meta) {
-								final r = ~/^#if ([a-zA-Z0-9]+) (.*)$/;
-								var argMetaName = ":argMeta";
-								var paramMetaName = m.name;
-								if(r.match(paramMetaName)) {
-									argMetaName = '#if ${r.matched(1)} $argMetaName';
-									paramMetaName = r.matched(2);
-								}
-								extraMetadata.push(Util.makeMetadataEntry(
-									macro $v{argMetaName}(
-										$v{index}, $v{paramMetaName}($a{m.params})
-									)
-								));
-							}
-							#end
-							return {
-								name: Util.processIdentifier(godotArg.name),
-								type: bindings.getArgumentType(godotArg.type),
-								meta: meta,
-								opt: opt,
-								value: value
-							}
-						}),
+						args: functionArgs,
 						ret: bindings.getReturnType(method.return_value?.type),
 						expr: expr
 					}),
@@ -605,11 +571,11 @@ class GenerateClass {
 				});
 			}
 
-			if(isSingleton) {
+			if (isSingleton) {
 				// -----------------------
 				// C++ extern inline
 
-				if(options.cpp) {
+				if (options.cpp) {
 					var i = 0;
 					final margs = method.arguments.denullify();
 					final args = margs.map(a -> "{" + (i++) + "}").join(", ");
@@ -619,73 +585,51 @@ class GenerateClass {
 						[macro $v{call}].concat(margs.map(a -> macro $i{Util.processIdentifier(a.name)}))
 						#else
 						[]
-						#end;
+						#end
+						;
 					}
-					
-					addField(
-						null,
-						Util.makeMetadata(
-							#if eval
-							macro godot_bindings_gen_prepend($v{'#if ${Bindings.cxxInlineSingletonsCondition}'}),
-							macro godot_bindings_gen_append("\n#else")
-							#end
-						),
-						[AStatic, AExtern, AInline],
-						#if eval macro {
+
+					addField(null,
+						Util.makeMetadata(#if eval macro godot_bindings_gen_prepend($v{'#if ${Bindings.cxxInlineSingletonsCondition}'}),
+							macro godot_bindings_gen_append("\n#else") #end
+						), [AStatic, AExtern, AInline], #if eval
+						macro {
 							@:include($v{"godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp"})
 							return untyped __cpp__($a{totalArgs});
-						} #else null #end
+						}
+						#else
+						null
+						#end
 					);
 				}
 
 				// -----------------------
 				// Normal static call
-				addField(
-					null,
-					!options.cpp ? [] : Util.makeMetadata(
-						#if eval
-						macro godot_bindings_gen_append("#end")
-						#end
-					),
-					[AStatic]
-				);
+				addField(null, !options.cpp ? [] : Util.makeMetadata(#if eval macro godot_bindings_gen_append("#end") #end), [AStatic]);
 			} else {
-
 				var baseFieldMetadata = [];
 
-				if(setterType != null) {
+				if (setterType != null) {
 					final t = haxe.macro.ComplexTypeTools.toString(bindings.getReturnType(setterType));
-					addField(
-						null,
-						Util.makeMetadata(
-							#if eval
-							macro godot_bindings_gen_prepend($v{'#if use_properties
+					addField(null, Util.makeMetadata(#if eval macro godot_bindings_gen_prepend($v{
+						'#if use_properties
 	public extern inline function $preimplName(v: $t): $t {
 		${preimplName}_impl(cast v);
 		return v;
 	}
-'}),
-							macro godot_bindings_gen_append("\n#else"),
-							macro $v{options.nativeNameMeta}($v{preimplName})
-							#end
-						),
-					);
+'
+					}), macro godot_bindings_gen_append("\n#else"), macro $v{options.nativeNameMeta}($v{preimplName}) #end),);
 
-
-					baseFieldMetadata = Util.makeMetadata(
-						#if eval
-						macro godot_bindings_gen_append("\n#end")
-						#end
-					);
+					baseFieldMetadata = Util.makeMetadata(#if eval macro godot_bindings_gen_append("\n#end") #end);
 				}
 
 				// Special case to deal with Godot-CPP's `get_node<T>`.
 				// To get the behavior expected for GDScript's `get_node`, `get_node_internal` should be used.
-				if(options.cpp && cls.name == "Node" && originalName == "get_node") {
+				if (options.cpp && cls.name == "Node" && originalName == "get_node") {
 					#if eval
 					baseFieldMetadata.push(Util.makeMetadataEntry(macro $v{'#if ${Bindings.cxxFixGetNode} ${options.nativeNameMeta}'}("get_node_internal")));
 					#end
-				} else if(preimplName != originalName) {
+				} else if (preimplName != originalName) {
 					#if eval
 					baseFieldMetadata.push(Util.makeMetadataEntry(macro $v{options.nativeNameMeta}($v{originalName})));
 					#end
@@ -695,39 +639,51 @@ class GenerateClass {
 				// To prevent conflict with any Haxe getters/setters we made, add "_function" to the end.
 				final forcedName = !wasRenamed && existingRenames.exists(name) ? (preimplName + "_function") : preimplName;
 
-				addField(
-					forcedName,
-					baseFieldMetadata
-				);
+				addField(forcedName, baseFieldMetadata);
 			}
-
-			
 		}
 
-		/**TODO
-			// https://github.com/godotengine/godot/blob/93cdacbb0a30f12b2f3f5e8e06b90149deeb554b/core/extension/extension_api_dump.cpp#L1142C13-L1142C13
-			signals: MaybeArray<{
-				name: String,
-				arguments: MaybeArray<{
-					name: String,
-					type: String,
-					meta: Null<String>
-				}>,
-				description: Null<String>
-			}>,
-		**/
+		// Generate signals
+		for (signal in cls.signals.denullify()) {
+			final signalName = Util.processIdentifier(signal.name);
 
-		final meta = Util.makeMetadata(
+			// Build documentation string that includes argument types
+			var docString = signal.description ?? "";
+			final signalArgs = signal.arguments.denullify();
+			if (signalArgs.length > 0) {
+				final argsDoc = signalArgs.map(arg -> '${arg.name}: ${arg.type}').join(", ");
+				docString = 'Signal arguments: ($argsDoc)\n\n$docString';
+			}
+
+			// Build metadata for signal arguments info
+			final signalMeta:Metadata = Util.makeMetadata(#if eval macro signal, macro nativeName($v{signal.name}) #end);
+
 			#if eval
-			macro generated_godot_api,
-			macro bindings_api_type("class"),
-			macro is_refcounted($v{cls.is_refcounted}),
-			macro is_instantiable($v{cls.is_instantiable}),
-			macro api_type($v{cls.api_type})
+			// Add argument metadata for each signal argument
+			for (i => arg in signalArgs) {
+				signalMeta.push(Util.makeMetadataEntry(macro signal_arg($v{i}, $v{arg.name}, $v{arg.type})));
+			}
 			#end
-		);
 
-		if(options.cpp) {
+			final signalAccess = isSingleton ? fieldAccess.concat([AStatic]) : fieldAccess;
+
+			fields.push({
+				name: signalName,
+				pos: Util.makeEmptyPosition(),
+				access: signalAccess,
+				kind: FVar(TPath({
+					pack: bindings.getPack(),
+					name: "Signal"
+				})),
+				meta: signalMeta,
+				doc: Util.processDescription(docString)
+			});
+		}
+
+		final meta = Util.makeMetadata(#if eval macro generated_godot_api, macro bindings_api_type("class"), macro is_refcounted($v{cls.is_refcounted}),
+			macro is_instantiable($v{cls.is_instantiable}), macro api_type($v{cls.api_type}) #end);
+
+		if (options.cpp) {
 			#if eval
 			final p = "godot_cpp/classes/" + Util.camelToSnake(cls.name) + ".hpp";
 			meta.push(Util.makeMetadataEntry(macro $v{'#if ${options.cppDefine} :include'}($v{p})));
